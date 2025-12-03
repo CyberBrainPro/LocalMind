@@ -1,0 +1,872 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <title>LocalMind · 本地 AI 知识助手</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta
+    name="description"
+    content="LocalMind 是一款本地运行的 AI 知识助手，将你的文档变成可对话的私有知识库，支持 Qwen（通义千问）、本地向量库与现代化 Web 界面。"
+  />
+  <meta property="og:title" content="LocalMind · 本地 AI 知识助手" />
+  <meta
+    property="og:description"
+    content="本地运行、隐私优先，把你的文档变成可对话的私有知识库。"
+  />
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://github.com/CyberBrainPro/LocalMind" />
+  <!-- 如果你把 logo 放在 assets/logo.png，可以打开下面这一行 -->
+  <!-- <meta property="og:image" content="https://raw.githubusercontent.com/CyberBrainPro/LocalMind/main/assets/logo.png" /> -->
+
+  <style>
+    :root {
+      color-scheme: dark light;
+      --bg: #020617;
+      --bg-soft: #020617;
+      --panel: #020617;
+      --panel-soft: #020617;
+      --border: rgba(148, 163, 184, 0.3);
+      --accent: #3b82f6;
+      --accent-soft: rgba(59, 130, 246, 0.16);
+      --text: #e5e7eb;
+      --text-soft: #9ca3af;
+      --danger: #f97373;
+      --radius-lg: 20px;
+      --radius-xl: 26px;
+      --shadow-lg: 0 28px 80px rgba(15, 23, 42, 0.75);
+      --shadow-soft: 0 18px 40px rgba(15, 23, 42, 0.7);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "SF Pro Text",
+        "Segoe UI", sans-serif;
+      min-height: 100vh;
+      color: var(--text);
+      background:
+        radial-gradient(circle at top, #1e293b 0, #020617 48%, #000 100%);
+      display: flex;
+      justify-content: center;
+    }
+
+    .page {
+      width: 100%;
+      max-width: 1120px;
+      padding: 16px 16px 40px;
+    }
+
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 10px 16px;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      background: radial-gradient(circle at top left, #111827, #020617);
+      box-shadow: 0 18px 40px rgba(15, 23, 42, 0.9);
+      backdrop-filter: blur(22px);
+      position: sticky;
+      top: 10px;
+      z-index: 20;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .logo {
+      width: 34px;
+      height: 34px;
+      border-radius: 14px;
+      background:
+        radial-gradient(circle at 30% 15%, #dbeafe, #60a5fa 40%, #1d4ed8 75%);
+      border: 1px solid rgba(191, 219, 254, 0.7);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+      font-weight: 700;
+      color: #0b1120;
+      box-shadow:
+        0 14px 30px rgba(15, 23, 42, 0.95),
+        0 0 0 1px rgba(15, 23, 42, 0.7);
+    }
+
+    .brand-text {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .brand-title {
+      font-size: 16px;
+      font-weight: 600;
+      letter-spacing: 0.03em;
+    }
+
+    .brand-subtitle {
+      font-size: 11px;
+      color: var(--text-soft);
+    }
+
+    nav {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      font-size: 13px;
+    }
+
+    .nav-link {
+      color: var(--text-soft);
+      text-decoration: none;
+      padding: 4px 8px;
+      border-radius: 999px;
+      transition: all 0.12s ease;
+    }
+
+    .nav-link:hover {
+      color: var(--text);
+      background: rgba(15, 23, 42, 0.9);
+    }
+
+    .nav-cta {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 14px;
+      border-radius: 999px;
+      border: 1px solid rgba(148, 163, 184, 0.6);
+      color: var(--text-soft);
+      font-size: 12px;
+      text-decoration: none;
+      background: rgba(15, 23, 42, 0.95);
+    }
+
+    .nav-cta span.arrow {
+      font-size: 13px;
+    }
+
+    main {
+      margin-top: 24px;
+      display: grid;
+      grid-template-columns: minmax(0, 3fr) minmax(0, 2.5fr);
+      gap: 18px;
+    }
+
+    .hero-left {
+      padding: 20px 20px 22px;
+      border-radius: var(--radius-xl);
+      border: 1px solid var(--border);
+      background:
+        radial-gradient(circle at top left, rgba(148, 163, 184, 0.25), transparent 55%),
+        radial-gradient(circle at bottom right, rgba(56, 189, 248, 0.3), transparent 50%),
+        linear-gradient(145deg, #020617, #020617 60%, #020617);
+      box-shadow: var(--shadow-lg);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 10px;
+      border-radius: 999px;
+      border: 1px solid rgba(148, 163, 184, 0.7);
+      background: rgba(15, 23, 42, 0.95);
+      color: var(--text-soft);
+      font-size: 11px;
+      margin-bottom: 10px;
+    }
+
+    .pill-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 999px;
+      background: #22c55e;
+      box-shadow: 0 0 0 5px rgba(34, 197, 94, 0.35);
+    }
+
+    .hero-title {
+      font-size: 30px;
+      line-height: 1.25;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+      margin-bottom: 10px;
+    }
+
+    .hero-title span.highlight {
+      background: linear-gradient(120deg, #60a5fa, #a855f7, #22c55e);
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+    }
+
+    .hero-subtitle {
+      font-size: 14px;
+      line-height: 1.7;
+      color: var(--text-soft);
+      max-width: 600px;
+      margin-bottom: 18px;
+    }
+
+    .hero-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+
+    .btn-primary,
+    .btn-secondary {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      text-decoration: none;
+      border-radius: 999px;
+      font-size: 13px;
+      padding: 9px 16px;
+      cursor: pointer;
+      border: 1px solid transparent;
+      white-space: nowrap;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, #2563eb, #3b82f6);
+      color: #eff6ff;
+      border-color: rgba(191, 219, 254, 0.5);
+      box-shadow:
+        0 14px 32px rgba(37, 99, 235, 0.85),
+        0 0 0 1px rgba(15, 23, 42, 0.8);
+    }
+
+    .btn-primary span.icon {
+      font-size: 15px;
+    }
+
+    .btn-secondary {
+      background: rgba(15, 23, 42, 0.9);
+      color: var(--text-soft);
+      border-color: rgba(148, 163, 184, 0.8);
+      box-shadow: 0 8px 18px rgba(15, 23, 42, 0.8);
+    }
+
+    .hero-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      font-size: 11px;
+      color: var(--text-soft);
+      margin-top: 4px;
+    }
+
+    .hero-meta span {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .hero-meta small {
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      padding: 3px 6px;
+      border-radius: 999px;
+      border: 1px solid rgba(148, 163, 184, 0.7);
+      background: rgba(15, 23, 42, 0.9);
+    }
+
+    .hero-right {
+      padding: 16px 14px;
+      border-radius: var(--radius-xl);
+      border: 1px solid var(--border);
+      background: radial-gradient(circle at top, #020617 0, #020617 50%, #020617 100%);
+      box-shadow: var(--shadow-soft);
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .card-title {
+      font-size: 13px;
+      font-weight: 500;
+      color: #e5e7eb;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .badge {
+      font-size: 10px;
+      padding: 3px 7px;
+      border-radius: 999px;
+      border: 1px solid rgba(148, 163, 184, 0.7);
+      color: var(--text-soft);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    .chat-preview {
+      margin-top: 6px;
+      border-radius: 16px;
+      border: 1px solid rgba(31, 41, 55, 0.9);
+      background: radial-gradient(circle at top left, #111827, #020617);
+      padding: 10px 10px 12px;
+      font-size: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .chat-row {
+      display: flex;
+      gap: 8px;
+      align-items: flex-start;
+    }
+
+    .avatar {
+      width: 22px;
+      height: 22px;
+      border-radius: 999px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 11px;
+      font-weight: 600;
+      flex-shrink: 0;
+    }
+
+    .avatar.user {
+      background: linear-gradient(135deg, #38bdf8, #0ea5e9);
+      color: #0f172a;
+    }
+
+    .avatar.ai {
+      background: linear-gradient(135deg, #a855f7, #6366f1);
+      color: #f9fafb;
+    }
+
+    .bubble {
+      border-radius: 12px;
+      padding: 6px 9px;
+      border: 1px solid rgba(55, 65, 81, 0.9);
+      background: rgba(15, 23, 42, 0.95);
+      color: var(--text-soft);
+    }
+
+    .bubble.user {
+      background: linear-gradient(135deg, #1d4ed8, #3b82f6);
+      color: #eff6ff;
+      border-color: rgba(191, 219, 254, 0.7);
+    }
+
+    .bubble small {
+      display: block;
+      margin-top: 3px;
+      font-size: 10px;
+      opacity: 0.7;
+    }
+
+    .code-block {
+      margin-top: 4px;
+      border-radius: 12px;
+      border: 1px solid rgba(15, 23, 42, 0.9);
+      background: rgba(15, 23, 42, 0.95);
+      padding: 8px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono",
+        "Courier New", monospace;
+      font-size: 11px;
+      color: #e5e7eb;
+      overflow-x: auto;
+    }
+
+    .pill-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-top: 4px;
+    }
+
+    .pill-tag {
+      font-size: 10px;
+      padding: 4px 8px;
+      border-radius: 999px;
+      background: rgba(15, 23, 42, 0.8);
+      border: 1px solid rgba(55, 65, 81, 0.9);
+      color: var(--text-soft);
+    }
+
+    section {
+      margin-top: 30px;
+      padding: 18px 18px 16px;
+      border-radius: var(--radius-lg);
+      border: 1px solid var(--border);
+      background: radial-gradient(circle at top, #020617 0, #020617 50%, #020617 100%);
+      box-shadow: var(--shadow-soft);
+    }
+
+    section h2 {
+      font-size: 18px;
+      margin-bottom: 10px;
+      letter-spacing: 0.04em;
+    }
+
+    section p {
+      font-size: 13px;
+      color: var(--text-soft);
+      margin-bottom: 10px;
+      line-height: 1.7;
+    }
+
+    .feature-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 12px;
+      margin-top: 10px;
+    }
+
+    .feature-card {
+      border-radius: 14px;
+      border: 1px solid rgba(30, 64, 175, 0.9);
+      background: radial-gradient(circle at top, rgba(37, 99, 235, 0.2), #020617);
+      padding: 10px 10px 11px;
+      font-size: 12px;
+    }
+
+    .feature-card h3 {
+      font-size: 13px;
+      margin-bottom: 5px;
+    }
+
+    .feature-card p {
+      font-size: 12px;
+      margin-bottom: 0;
+    }
+
+    .steps {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 10px;
+      margin-top: 12px;
+      font-size: 12px;
+    }
+
+    .step-card {
+      border-radius: 14px;
+      border: 1px solid rgba(55, 65, 81, 0.9);
+      padding: 8px 9px;
+      background: rgba(15, 23, 42, 0.95);
+    }
+
+    .step-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 11px;
+      margin-bottom: 4px;
+      color: var(--accent);
+    }
+
+    .step-badge span.num {
+      width: 16px;
+      height: 16px;
+      border-radius: 999px;
+      border: 1px solid rgba(59, 130, 246, 0.8);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 10px;
+    }
+
+    .step-card code {
+      font-size: 11px;
+      background: rgba(15, 23, 42, 0.95);
+      padding: 2px 4px;
+      border-radius: 6px;
+      border: 1px solid rgba(31, 41, 55, 0.9);
+      display: inline-block;
+      margin-top: 2px;
+    }
+
+    .roadmap-list {
+      list-style: none;
+      font-size: 13px;
+      margin-top: 6px;
+    }
+
+    .roadmap-list li {
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+      margin: 3px 0;
+      color: var(--text-soft);
+    }
+
+    .roadmap-list li span.icon {
+      font-size: 13px;
+      margin-top: 1px;
+    }
+
+    .roadmap-list li.done span.icon {
+      color: #4ade80;
+    }
+
+    .roadmap-list li.todo span.icon {
+      color: #facc15;
+    }
+
+    .cta-footer {
+      margin-top: 18px;
+      padding-top: 10px;
+      border-top: 1px dashed rgba(55, 65, 81, 0.9);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      font-size: 12px;
+      color: var(--text-soft);
+      flex-wrap: wrap;
+    }
+
+    footer {
+      margin-top: 24px;
+      text-align: center;
+      font-size: 11px;
+      color: var(--text-soft);
+      opacity: 0.85;
+    }
+
+    footer a {
+      color: var(--text-soft);
+      text-decoration: none;
+    }
+
+    footer a:hover {
+      color: var(--text);
+    }
+
+    @media (max-width: 880px) {
+      header {
+        flex-wrap: wrap;
+        border-radius: 18px;
+      }
+
+      nav {
+        width: 100%;
+        justify-content: flex-end;
+        flex-wrap: wrap;
+      }
+
+      main {
+        grid-template-columns: minmax(0, 1fr);
+      }
+
+      .hero-right {
+        order: -1;
+      }
+
+      .feature-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .steps {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+    }
+
+    @media (max-width: 640px) {
+      .page {
+        padding: 12px 10px 24px;
+      }
+
+      header {
+        padding-inline: 10px;
+      }
+
+      main {
+        margin-top: 18px;
+      }
+
+      .hero-title {
+        font-size: 22px;
+      }
+
+      .hero-subtitle {
+        font-size: 13px;
+      }
+
+      section {
+        padding-inline: 12px;
+      }
+
+      .feature-grid {
+        grid-template-columns: minmax(0, 1fr);
+      }
+
+      .steps {
+        grid-template-columns: minmax(0, 1fr);
+      }
+
+      .cta-footer {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+    }
+  </style>
+</head>
+<body>
+<div class="page">
+  <header>
+    <div class="brand">
+      <div class="logo">LM</div>
+      <div class="brand-text">
+        <div class="brand-title">LocalMind</div>
+        <div class="brand-subtitle">本地 AI 知识助手 · Local AI Knowledge OS</div>
+      </div>
+    </div>
+    <nav>
+      <a class="nav-link" href="#features">功能</a>
+      <a class="nav-link" href="#how-it-works">原理</a>
+      <a class="nav-link" href="#roadmap">Roadmap</a>
+      <a class="nav-link" href="https://github.com/CyberBrainPro/LocalMind" target="_blank">GitHub</a>
+      <a class="nav-cta" href="https://github.com/CyberBrainPro/LocalMind#-快速开始" target="_blank">
+        查看 README
+        <span class="arrow">↗</span>
+      </a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="hero-left" id="top">
+      <div class="pill">
+        <span class="pill-dot"></span>
+        <span>本地优先 · Qwen 驱动 · 开源核心</span>
+      </div>
+      <h1 class="hero-title">
+        把你的文档，变成可对话的<br />
+        <span class="highlight">本地私有知识库</span>
+      </h1>
+      <p class="hero-subtitle">
+        LocalMind 是一款本地运行的 AI 知识助手：轻量部署、隐私优先，
+        基于向量检索 + Qwen（通义千问）实现 RAG 智能问答，
+        让 PDF、文档、笔记不再只是“堆在那里”，而是真正成为你的第二大脑。
+      </p>
+
+      <div class="hero-actions">
+        <a class="btn-primary" href="https://github.com/CyberBrainPro/LocalMind" target="_blank">
+          <span class="icon">⭐</span>
+          <span>在 GitHub 上 Star & 克隆</span>
+        </a>
+        <a class="btn-secondary" href="http://127.0.0.1:8787/chat" target="_self">
+          <span>本地已运行？打开 Chat 界面</span>
+        </a>
+      </div>
+
+      <div class="hero-meta">
+        <span><small>完全本地</small> 文档与向量存储在你的机器，不上传云端</span>
+        <span><small>LLM 可插拔</small> 默认 Qwen，后续可扩展本地大模型</span>
+      </div>
+    </section>
+
+    <section class="hero-right">
+      <div class="card-title">
+        <span>内置聊天界面预览</span>
+        <span class="badge">/chat · MVP</span>
+      </div>
+      <div class="chat-preview">
+        <div class="chat-row">
+          <div class="avatar user">Me</div>
+          <div class="bubble user">
+            我已经把一份“职业三分法”的笔记导入了，帮我总结一下 4 种赚钱路径的核心差异？
+            <small>本地提问 · 基于私人文档</small>
+          </div>
+        </div>
+        <div class="chat-row">
+          <div class="avatar ai">AI</div>
+          <div class="bubble">
+            根据知识库内容，可以粗略分为四种路径：<br />
+            1. <strong>妓女型</strong>：公开交易，明确卖时间/卖技能，对价清晰；<br />
+            2. <strong>强盗型</strong>：规则强制付费，对方知道不划算但别无选择；<br />
+            3. <strong>小偷型</strong>：隐形收费、信息不透明，通过“模糊账”拿走用户的钱；<br />
+            4. <strong>骗子型</strong>：通过叙事与话术制造“占便宜”的错觉，本质是高溢价收割。<br />
+            它们的本质差异在于：<em>交易是否透明、对价是否对等、是否基于真实价值</em>。
+            <small>来自：本地知识库 · 4 个相关片段</small>
+          </div>
+        </div>
+
+        <div class="code-block">
+          <div style="opacity: 0.7; margin-bottom: 4px;">⚙️ FastAPI + Chroma + Qwen · 一段最小调用链：</div>
+<pre><code>POST /ingest  →  文本切片 + 向量入库
+POST /query   →  向量检索 + Qwen 回答
+GET  /chat    →  Web 界面对话</code></pre>
+        </div>
+
+        <div class="pill-row">
+          <span class="pill-tag">本地向量库 · Chroma</span>
+          <span class="pill-tag">Qwen text-embedding-v1</span>
+          <span class="pill-tag">Qwen qwen-plus</span>
+          <span class="pill-tag">静态 Vue3 前端</span>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <section id="features">
+    <h2>✨ 核心功能特点</h2>
+    <p>
+      LocalMind 目前处于 MVP 阶段，专注在一件事情上：<strong>把你的本地文档，变成可检索、可追溯、可对话的知识库</strong>。
+      整体架构简单、透明，方便你在此基础上二次开发或做私有部署。
+    </p>
+
+    <div class="feature-grid">
+      <div class="feature-card">
+        <h3>🔐 纯本地 · 隐私优先</h3>
+        <p>
+          文档与向量全部保存在你的机器上，仅在需要时调用 Qwen 模型。
+          未来将支持完全离线模型，让“隐私”不仅写在文案里，而是写进架构里。
+        </p>
+      </div>
+      <div class="feature-card">
+        <h3>🧠 RAG 知识问答</h3>
+        <p>
+          使用向量检索从知识库中找出相关片段，再交给大模型生成回答。
+          相比“纯聊天”，它真正基于你的资料，而不是凭空想象。
+        </p>
+      </div>
+      <div class="feature-card">
+        <h3>🤖 Qwen 驱动</h3>
+        <p>
+          基于阿里云 Model Studio 的 Qwen 系列模型，通过 OpenAI 兼容接口接入。
+          支持 text-embedding-v1 + qwen-plus，可按需替换模型。
+        </p>
+      </div>
+      <div class="feature-card">
+        <h3>💬 内置 Chat UI</h3>
+        <p>
+          直接访问 <code>/chat</code> 即可体验现代化聊天界面，
+          支持查看上下文片段、对话历史，前端为纯静态 Vue3，无需构建工具。
+        </p>
+      </div>
+      <div class="feature-card">
+        <h3>🧩 结构简单，二开友好</h3>
+        <p>
+          FastAPI + Chroma + OpenAI SDK，目录结构与接口都非常克制，
+          适合作为你自己项目的“本地 RAG 内核”。
+        </p>
+      </div>
+      <div class="feature-card">
+        <h3>🧭 Open Core 路线</h3>
+        <p>
+          核心代码开源，未来会提供一键安装、桌面版、多知识库、团队版等增强付费功能，
+          在“社区”与“产品”之间保持一个健康的平衡。
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <section id="how-it-works">
+    <h2>🧬 它是如何工作的？</h2>
+    <p>
+      从工程视角看，LocalMind 只是做了三件很简单的事情：
+      <strong>解析 → 切片 → 向量 → 检索 → 调用 Qwen</strong>。
+      你可以把它当作一条最小可用的“本地 RAG 管线”。
+    </p>
+
+    <div class="steps">
+      <div class="step-card">
+        <div class="step-badge">
+          <span class="num">1</span> 文本导入 / ingest
+        </div>
+        <p>通过 <code>POST /ingest</code> 接口发送文本内容（未来支持文件上传）。</p>
+        <code>{"text": "你的文档内容..."}</code>
+      </div>
+      <div class="step-card">
+        <div class="step-badge">
+          <span class="num">2</span> 切片 + 向量化
+        </div>
+        <p>在本地对文本进行简单切片，调用 <code>text-embedding-v1</code> 生成向量，写入 Chroma。</p>
+      </div>
+      <div class="step-card">
+        <div class="step-badge">
+          <span class="num">3</span> 检索相关片段
+        </div>
+        <p>当你提问时，对问题做向量化，从向量库中找出最相关的若干片段。</p>
+      </div>
+      <div class="step-card">
+        <div class="step-badge">
+          <span class="num">4</span> Qwen 生成回答
+        </div>
+        <p>把“问题 + 检索到的片段”打包喂给 Qwen，让它在<strong>你自己的知识</strong>基础上生成回复。</p>
+      </div>
+    </div>
+  </section>
+
+  <section id="roadmap">
+    <h2>🗺 路线图 Roadmap</h2>
+    <p>
+      当前版本只是一个干净的 MVP。后续会逐步演进成“可一键部署的本地知识 OS”，
+      并在合适的时机提供桌面版本和企业版。
+    </p>
+
+    <ul class="roadmap-list">
+      <li class="done">
+        <span class="icon">✅</span>
+        <span>Qwen 接入（chat + embedding） · FastAPI 服务 · Chroma 本地向量库</span>
+      </li>
+      <li class="done">
+        <span class="icon">✅</span>
+        <span>内置静态 Chat 页面 <code>/chat</code> · 支持查看上下文片段</span>
+      </li>
+      <li class="todo">
+        <span class="icon">🟡</span>
+        <span>PDF / Word / Markdown 文件上传与解析，并自动入库</span>
+      </li>
+      <li class="todo">
+        <span class="icon">🟡</span>
+        <span>多知识库管理：按项目 / 客户 / 主题 分不同空间</span>
+      </li>
+      <li class="todo">
+        <span class="icon">🟡</span>
+        <span>本地模型支持：通过 Ollama / llama.cpp 等接入离线 LLM</span>
+      </li>
+      <li class="todo">
+        <span class="icon">🟡</span>
+        <span>桌面版（Windows / macOS / Linux）一键安装包</span>
+      </li>
+      <li class="todo">
+        <span class="icon">🟡</span>
+        <span>企业私有部署版：带管理后台、多用户权限、审计日志等</span>
+      </li>
+    </ul>
+
+    <div class="cta-footer">
+      <div>
+        想参与共建或跟进进度？可以在
+        <a href="https://github.com/CyberBrainPro/LocalMind/issues" target="_blank" style="color: var(--accent); text-decoration: none;">GitHub Issues</a>
+        中提交需求 / 反馈。
+      </div>
+      <div>
+        喜欢这个方向？可以给仓库点颗 ⭐ Star，它会直接影响 Roadmap 的优先级。
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <div>LocalMind · 本地 AI 知识助手 · 开源核心 / Open Core</div>
+    <div>
+      项目地址：
+      <a href="https://github.com/CyberBrainPro/LocalMind" target="_blank">CyberBrainPro/LocalMind</a>
+    </div>
+  </footer>
+</div>
+</body>
+</html>

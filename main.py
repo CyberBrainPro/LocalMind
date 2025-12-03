@@ -3,8 +3,9 @@ import uuid
 from typing import List, Optional
 
 from fastapi import FastAPI, HTTPException
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
+from fastapi.middleware.cors import CORSMiddleware
 
 from pydantic import BaseModel
 
@@ -53,13 +54,11 @@ collection = chroma_client.get_or_create_collection("localmind_default")
 # ========================
 #  FastAPI 初始化 + CORS
 # ========================
-from fastapi.middleware.cors import CORSMiddleware
-
-app = FastAPI(title="LocalMind MVP with Qwen", version="0.3.0")
+app = FastAPI(title="LocalMind MVP with Qwen", version="0.4.0")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],    # 你也可以之后收紧
+    allow_origins=["*"],    # 开发阶段可以全开，后续再收紧
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -67,23 +66,52 @@ app.add_middleware(
 
 
 # ========================
-#  静态资源挂载（提供 /chat）
+#  静态资源挂载
 # ========================
 
-# 确保 static 文件夹存在
+# 确保 static 目录存在（用于 chat.html）
 if not os.path.exists("static"):
     os.makedirs("static")
 
-# 将 static/ 挂载为 /static
+# 如果你未来想在网站里引用本地资源（JS/CSS/图片），可以把它们放到 website/ 并通过 /website 访问
+if not os.path.exists("website"):
+    os.makedirs("website")
+
+# 静态目录挂载
 app.mount("/static", StaticFiles(directory="static"), name="static")
+app.mount("/website", StaticFiles(directory="website"), name="website")
 
 
-# /chat 返回静态文件 chat.html
+# ========================
+#  页面路由：Landing Page + Chat
+# ========================
+
+@app.get("/", response_class=HTMLResponse)
+def serve_index():
+    """
+    访问根路径 / 时，返回 website/index.html
+    """
+    index_path = os.path.join("website", "index.html")
+    if not os.path.exists(index_path):
+        # 如果忘记放文件，给个提示
+        return HTMLResponse(
+            "<h1>LocalMind</h1><p>未找到 website/index.html，请确认文件路径。</p>",
+            status_code=404,
+        )
+    return FileResponse(index_path)
+
+
 @app.get("/chat")
 def serve_chat():
+    """
+    访问 /chat 时，返回 static/chat.html
+    """
     chat_path = os.path.join("static", "chat.html")
     if not os.path.exists(chat_path):
-        return {"error": "chat.html 不存在，请把 chat.html 放到 static/ 目录下"}
+        return HTMLResponse(
+            "<h1>LocalMind Chat</h1><p>未找到 static/chat.html，请确认文件路径。</p>",
+            status_code=404,
+        )
     return FileResponse(chat_path)
 
 
@@ -118,7 +146,7 @@ def chunk_text(text: str, max_chars: int = 500):
     text = text.strip()
     if len(text) <= max_chars:
         return [text]
-    return [text[i:i+max_chars] for i in range(0, len(text), max_chars)]
+    return [text[i:i + max_chars] for i in range(0, len(text), max_chars)]
 
 
 # ========================
@@ -160,15 +188,20 @@ def chat_with_llm(question: str, context: str) -> str:
 
 
 # ========================
-# API: 测试接口
+# API: 健康检查 / 调试
 # ========================
-@app.get("/")
-def root():
+@app.get("/api/status")
+def api_status():
     return {
         "message": "LocalMind MVP (Qwen version) running",
-        "chat_url": "/chat",
         "model": LLM_MODEL,
         "vector_db": CHROMA_DB_DIR,
+        "routes": {
+            "landing_page": "/",
+            "chat_page": "/chat",
+            "ingest_api": "/ingest",
+            "query_api": "/query",
+        },
     }
 
 
