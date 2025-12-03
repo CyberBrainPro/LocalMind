@@ -133,7 +133,7 @@ LocalMind/
 ├─ requirements.txt     # 依赖
 ├─ localmind_db/        # Chroma 持久化向量库（自动生成）
 └─ static/
-└─ chat.html         # 前端聊天界面（Vue3 单文件）
+    └─ chat.html         # 前端聊天界面（Vue3 单文件）
 
 ````
 
