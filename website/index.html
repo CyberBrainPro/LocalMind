@@ -683,40 +683,42 @@
         <span class="badge">/chat · MVP</span>
       </div>
       <div class="chat-preview">
-        <div class="chat-row">
-          <div class="avatar user">Me</div>
-          <div class="bubble user">
-            我已经把一份“职业三分法”的笔记导入了，帮我总结一下 4 种赚钱路径的核心差异？
-            <small>本地提问 · 基于私人文档</small>
-          </div>
-        </div>
-        <div class="chat-row">
-          <div class="avatar ai">AI</div>
-          <div class="bubble">
-            根据知识库内容，可以粗略分为四种路径：<br />
-            1. <strong>妓女型</strong>：公开交易，明确卖时间/卖技能，对价清晰；<br />
-            2. <strong>强盗型</strong>：规则强制付费，对方知道不划算但别无选择；<br />
-            3. <strong>小偷型</strong>：隐形收费、信息不透明，通过“模糊账”拿走用户的钱；<br />
-            4. <strong>骗子型</strong>：通过叙事与话术制造“占便宜”的错觉，本质是高溢价收割。<br />
-            它们的本质差异在于：<em>交易是否透明、对价是否对等、是否基于真实价值</em>。
-            <small>来自：本地知识库 · 4 个相关片段</small>
-          </div>
-        </div>
+  <div class="chat-row">
+    <div class="avatar user">Me</div>
+    <div class="bubble user">
+      我已导入本季度的业务复盘材料。
+      帮我提炼三个最关键的问题，作为管理层会议的讨论重点。
+      <small>来自：本地文档 · 经营分析材料</small>
+    </div>
+  </div>
 
-        <div class="code-block">
-          <div style="opacity: 0.7; margin-bottom: 4px;">⚙️ FastAPI + Chroma + Qwen · 一段最小调用链：</div>
-<pre><code>POST /ingest  →  文本切片 + 向量入库
-POST /query   →  向量检索 + Qwen 回答
-GET  /chat    →  Web 界面对话</code></pre>
-        </div>
+  <div class="chat-row">
+    <div class="avatar ai">AI</div>
+    <div class="bubble">
+      根据已导入的复盘内容，建议管理层关注以下 3 个核心问题：
+      <br><br>
+      1. <strong>业务结构失衡</strong>：增长主要依赖单一渠道，抗风险能力较弱；
+      2. <strong>项目交付效率偏低</strong>：跨团队协作链路存在明显等待与反复；
+      3. <strong>关键人才负荷过高</strong>：组织容量不足已成为瓶颈，影响中期规划。
+      <br>
+      如需，我可以继续生成会议提纲或汇报材料。
+      <small>来源：本地知识库 · 6 个相关片段</small>
+    </div>
+  </div>
 
-        <div class="pill-row">
-          <span class="pill-tag">本地向量库 · Chroma</span>
-          <span class="pill-tag">Qwen text-embedding-v1</span>
-          <span class="pill-tag">Qwen qwen-plus</span>
-          <span class="pill-tag">静态 Vue3 前端</span>
-        </div>
-      </div>
+  <div class="code-block">
+<pre><code>POST /query → 向量检索关键片段
+Qwen → 基于真实数据生成管理洞察
+所有内容仅在本地完成处理</code></pre>
+  </div>
+
+  <div class="pill-row">
+    <span class="pill-tag">经营分析</span>
+    <span class="pill-tag">管理复盘</span>
+    <span class="pill-tag">决策支持</span>
+    <span class="pill-tag">本地知识库</span>
+  </div>
+</div>
     </section>
   </main>
 
