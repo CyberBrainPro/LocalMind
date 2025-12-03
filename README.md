@@ -83,6 +83,21 @@
 
 </div>
 
+## 🧩 环境变量配置（.env 示例）
+
+在项目根目录创建 `.env` 文件, 开源参考 .env.example：
+
+```env
+# 通义千问 API Key（必填）
+LLM_API_KEY=your-dashscope-api-key-here
+
+# Qwen OpenAI 兼容模式 Base URL（可选，不写则使用默认值）
+LLM_BASE_URL=https://dashscope.aliyuncs.com/compatible-mode/v1
+
+# 默认模型（可选）
+LLM_MODEL=qwen-plus
+```
+
 ---
 
 ## ✨ 主要特性
