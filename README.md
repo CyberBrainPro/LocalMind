@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="https://raw.githubusercontent.com/CyberBrainPro/LocalMind/main/assets/logo.png" alt="LocalMind Logo" width="96">
+  <img src="/assets/logo.png" alt="LocalMind Logo" width="96">
 </p>
 
 <h1 align="center">LocalMind · 本地 AI 知识助手</h1>
@@ -60,7 +60,7 @@
 ## 🖼 预览
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/CyberBrainPro/LocalMind/main/assets/screenshot-chat.png" width="85%" alt="LocalMind Chat UI">
+  <img src="/assets/screenshot-chat.png" width="85%" alt="LocalMind Chat UI">
 </p>
 
 <p align="center"><em>▲ LocalMind 内置聊天界面，可查看引用知识块与上下文。</em></p>
