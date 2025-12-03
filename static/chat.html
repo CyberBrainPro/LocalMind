@@ -1,0 +1,544 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <title>LocalMind Chat</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <!-- 简单现代化样式 -->
+  <style>
+    :root {
+      color-scheme: dark light;
+      --bg: #0f172a;
+      --bg-light: #111827;
+      --accent: #3b82f6;
+      --accent-soft: rgba(59,130,246,0.12);
+      --border: rgba(148,163,184,0.35);
+      --text: #e5e7eb;
+      --text-soft: #9ca3af;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "SF Pro Text",
+        "Segoe UI", sans-serif;
+      background: radial-gradient(circle at top, #1d283a 0, #020617 50%, #000 100%);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      align-items: stretch;
+      justify-content: center;
+      padding: 16px;
+    }
+
+    #app {
+      width: 100%;
+      max-width: 960px;
+      background: linear-gradient(
+          135deg,
+          rgba(148, 163, 184, 0.12),
+          rgba(15, 23, 42, 0.96)
+        );
+      border-radius: 24px;
+      border: 1px solid rgba(148, 163, 184, 0.35);
+      box-shadow:
+        0 24px 60px rgba(15, 23, 42, 0.95),
+        0 0 0 1px rgba(15, 23, 42, 0.6);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .header {
+      padding: 16px 20px;
+      border-bottom: 1px solid rgba(148, 163, 184, 0.35);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      backdrop-filter: blur(16px);
+      background: linear-gradient(
+        to bottom,
+        rgba(15, 23, 42, 0.92),
+        rgba(15, 23, 42, 0.85)
+      );
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .logo {
+      width: 30px;
+      height: 30px;
+      border-radius: 12px;
+      background: radial-gradient(circle at 30% 20%, #60a5fa, #1d4ed8);
+      box-shadow:
+        0 0 0 1px rgba(191, 219, 254, 0.35),
+        0 12px 24px rgba(15, 23, 42, 0.9);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+      font-weight: 700;
+      color: #e5f0ff;
+    }
+
+    .title {
+      font-size: 16px;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+    }
+
+    .subtitle {
+      font-size: 12px;
+      color: var(--text-soft);
+    }
+
+    .header-right {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 12px;
+      color: var(--text-soft);
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 999px;
+      background: #22c55e;
+      box-shadow: 0 0 0 6px rgba(34, 197, 94, 0.25);
+    }
+
+    .badge {
+      border-radius: 999px;
+      border: 1px solid rgba(148, 163, 184, 0.55);
+      padding: 4px 10px;
+      font-size: 11px;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      color: var(--text-soft);
+    }
+
+    .main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      padding: 12px 16px 10px;
+      gap: 8px;
+    }
+
+    .messages {
+      flex: 1;
+      overflow-y: auto;
+      padding: 8px 4px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .msg-row {
+      display: flex;
+      gap: 8px;
+      align-items: flex-start;
+    }
+
+    .msg-row.user {
+      justify-content: flex-end;
+    }
+
+    .msg-avatar {
+      width: 24px;
+      height: 24px;
+      border-radius: 999px;
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 11px;
+      font-weight: 600;
+    }
+
+    .msg-avatar.user {
+      background: linear-gradient(135deg, #38bdf8, #0ea5e9);
+      color: #0f172a;
+    }
+
+    .msg-avatar.assistant {
+      background: linear-gradient(135deg, #a855f7, #6366f1);
+      color: #f9fafb;
+    }
+
+    .bubble {
+      max-width: 80%;
+      padding: 8px 10px;
+      border-radius: 14px;
+      font-size: 14px;
+      line-height: 1.5;
+      border: 1px solid transparent;
+      box-shadow: 0 8px 18px rgba(15, 23, 42, 0.8);
+    }
+
+    .bubble.user {
+      background: linear-gradient(135deg, #1d4ed8, #3b82f6);
+      color: #eff6ff;
+      border-color: rgba(191, 219, 254, 0.5);
+      border-bottom-right-radius: 4px;
+    }
+
+    .bubble.assistant {
+      background: radial-gradient(circle at top left, #1f2937, #020617);
+      border-color: rgba(55, 65, 81, 0.9);
+      border-bottom-left-radius: 4px;
+    }
+
+    .bubble-meta {
+      margin-top: 4px;
+      font-size: 11px;
+      color: var(--text-soft);
+      display: flex;
+      justify-content: space-between;
+      gap: 8px;
+      opacity: 0.85;
+    }
+
+    .context-toggle {
+      cursor: pointer;
+      color: #93c5fd;
+      text-decoration: underline;
+    }
+
+    .context {
+      margin-top: 6px;
+      padding: 6px 8px;
+      border-radius: 10px;
+      background: rgba(15, 23, 42, 0.95);
+      border: 1px solid rgba(148, 163, 184, 0.35);
+      font-size: 11px;
+      color: var(--text-soft);
+      max-height: 140px;
+      overflow-y: auto;
+      white-space: pre-wrap;
+    }
+
+    .empty-tip {
+      text-align: center;
+      margin-top: 20px;
+      font-size: 13px;
+      color: var(--text-soft);
+    }
+
+    .input-bar {
+      border-top: 1px solid rgba(148, 163, 184, 0.35);
+      padding: 10px 12px 12px;
+      background: linear-gradient(
+        to top,
+        rgba(15,23,42,0.98),
+        rgba(15,23,42,0.92)
+      );
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .input-row {
+      display: flex;
+      gap: 8px;
+      align-items: flex-end;
+    }
+
+    textarea {
+      resize: none;
+      width: 100%;
+      min-height: 44px;
+      max-height: 120px;
+      padding: 8px 10px;
+      border-radius: 12px;
+      border: 1px solid rgba(148, 163, 184, 0.7);
+      background: rgba(15, 23, 42, 0.95);
+      color: var(--text);
+      font-family: inherit;
+      font-size: 14px;
+      line-height: 1.5;
+      outline: none;
+      transition: border-color 0.15s ease, box-shadow 0.15s ease,
+        background 0.15s ease;
+    }
+
+    textarea:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 1px rgba(59,130,246,0.5);
+      background: rgba(15, 23, 42, 0.98);
+    }
+
+    .btn {
+      cursor: pointer;
+      border: none;
+      border-radius: 12px;
+      padding: 9px 14px;
+      font-size: 13px;
+      font-weight: 500;
+      background: linear-gradient(135deg, #2563eb, #3b82f6);
+      color: #eff6ff;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      box-shadow:
+        0 12px 24px rgba(37, 99, 235, 0.65),
+        0 0 0 1px rgba(15, 23, 42, 0.9);
+      white-space: nowrap;
+    }
+
+    .btn:disabled {
+      opacity: 0.6;
+      cursor: default;
+      box-shadow: none;
+    }
+
+    .btn-secondary {
+      background: rgba(15, 23, 42, 0.9);
+      color: var(--text-soft);
+      border: 1px solid rgba(148, 163, 184, 0.7);
+      box-shadow: none;
+    }
+
+    .footer-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 11px;
+      color: var(--text-soft);
+      padding: 0 2px;
+    }
+
+    .error {
+      color: #fecaca;
+    }
+
+    @media (max-width: 640px) {
+      #app {
+        border-radius: 18px;
+        padding: 0;
+      }
+      .main {
+        padding: 8px 10px;
+      }
+      .input-bar {
+        padding: 8px 8px 10px;
+      }
+      .bubble {
+        max-width: 100%;
+      }
+    }
+  </style>
+</head>
+<body>
+<div id="app">
+  <div class="header">
+    <div class="brand">
+      <div class="logo">LM</div>
+      <div>
+        <div class="title">LocalMind Chat</div>
+        <div class="subtitle">本地知识助手 · Qwen 接入</div>
+      </div>
+    </div>
+    <div class="header-right">
+      <div class="status-dot"></div>
+      <span>Backend: {{ backendUrl }}</span>
+      <span class="badge">MVP</span>
+    </div>
+  </div>
+
+  <div class="main">
+    <div class="messages" ref="messageList">
+      <div v-if="messages.length === 0" class="empty-tip">
+        👋 还没有对话，先问一个与你本地知识库相关的问题试试吧。
+      </div>
+
+      <div v-for="(msg, idx) in messages"
+           :key="idx"
+           class="msg-row"
+           :class="msg.role">
+        <div v-if="msg.role === 'assistant'" class="msg-avatar assistant">AI</div>
+        <div v-if="msg.role === 'user'" class="msg-avatar user">Me</div>
+
+        <div class="bubble" :class="msg.role">
+          <div v-html="formatMarkdown(msg.content)"></div>
+
+          <div class="bubble-meta">
+            <span>{{ msg.role === 'user' ? '提问' : '回答' }}</span>
+            <span v-if="msg.time">{{ msg.time }}</span>
+            <span v-if="msg.role === 'assistant' && msg.context && msg.context.length"
+                  class="context-toggle"
+                  @click="msg.showContext = !msg.showContext">
+              {{ msg.showContext ? '收起上下文' : '查看引用片段' }}
+            </span>
+          </div>
+
+          <div v-if="msg.showContext" class="context">
+            <div v-for="(chunk, i) in msg.context" :key="i">
+              <strong>片段 {{ i + 1 }}：</strong>
+              <div>{{ chunk }}</div>
+              <hr v-if="i < msg.context.length - 1" style="border:none;border-top:1px dashed rgba(148,163,184,0.4);margin:6px 0;">
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="input-bar">
+      <div class="input-row">
+        <textarea
+          v-model="input"
+          :rows="1"
+          @keydown.enter.exact.prevent="send"
+          @keydown.shift.enter.stop
+          placeholder="输入你的问题，Enter 发送，Shift+Enter 换行…"
+        ></textarea>
+        <button class="btn" @click="send" :disabled="sending || !input.trim()">
+          <span v-if="!sending">发送</span>
+          <span v-else>思考中…</span>
+        </button>
+      </div>
+      <div class="footer-row">
+        <div>
+          <button class="btn btn-secondary" @click="clearHistory" :disabled="!messages.length">
+            清空对话
+          </button>
+        </div>
+        <div>
+          <span v-if="error" class="error">⚠️ {{ error }}</span>
+          <span v-else>提示：请先在后端导入文档再进行提问。</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Vue 3（渐进式，CDN） -->
+<script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+<script>
+  const { createApp, ref, reactive, onMounted, nextTick } = Vue;
+
+  createApp({
+    setup() {
+      // 后端地址：如果你把 chat.html 通过 FastAPI 同源提供，可以用相对路径 "/query"
+      // 如果是直接 file:// 打开，请改为完整地址，如 "http://127.0.0.1:8787/query"
+      const backendBase = "http://127.0.0.1:8787";
+
+      const backendUrl = backendBase;
+      const messages = reactive([]);
+      const input = ref("");
+      const sending = ref(false);
+      const error = ref("");
+
+      const messageList = ref(null);
+
+      const scrollToBottom = () => {
+        nextTick(() => {
+          if (messageList.value) {
+            messageList.value.scrollTop = messageList.value.scrollHeight;
+          }
+        });
+      };
+
+      const nowTime = () => {
+        const d = new Date();
+        const hh = String(d.getHours()).padStart(2, "0");
+        const mm = String(d.getMinutes()).padStart(2, "0");
+        return `${hh}:${mm}`;
+      };
+
+      const send = async () => {
+        if (sending.value) return;
+        const q = input.value.trim();
+        if (!q) return;
+
+        error.value = "";
+        input.value = "";
+
+        messages.push({
+          role: "user",
+          content: q,
+          time: nowTime()
+        });
+        scrollToBottom();
+
+        sending.value = true;
+
+        try {
+          const resp = await fetch(backendBase + "/query", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+              question: q,
+              top_k: 5
+            })
+          });
+
+          if (!resp.ok) {
+            throw new Error("HTTP " + resp.status);
+          }
+
+          const data = await resp.json();
+
+          messages.push({
+            role: "assistant",
+            content: data.answer || "(无回答)",
+            context: data.context_chunks || [],
+            showContext: false,
+            time: nowTime()
+          });
+          scrollToBottom();
+        } catch (e) {
+          console.error(e);
+          error.value = "请求失败，请检查后端是否已运行或 CORS 设置。";
+        } finally {
+          sending.value = false;
+        }
+      };
+
+      const clearHistory = () => {
+        messages.splice(0, messages.length);
+      };
+
+      const formatMarkdown = (text) => {
+        // 简易处理：把 **加粗** 和换行转成粗体和 <br>
+        if (!text) return "";
+        let html = text
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;");
+        html = html.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
+        html = html.replace(/\n/g, "<br>");
+        return html;
+      };
+
+      onMounted(() => {
+        scrollToBottom();
+      });
+
+      return {
+        backendUrl,
+        messages,
+        input,
+        sending,
+        error,
+        send,
+        clearHistory,
+        formatMarkdown,
+        messageList
+      };
+    }
+  }).mount("#app");
+</script>
+</body>
+</html>
