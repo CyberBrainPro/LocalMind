@@ -336,6 +336,170 @@
         max-width: 100%;
       }
     }
+
+        .markdown-body {
+      font-size: 14px;
+      line-height: 1.7;
+    }
+
+    .markdown-body p {
+      margin: 4px 0;
+    }
+
+    .markdown-body code {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+        "Liberation Mono", "Courier New", monospace;
+      font-size: 12px;
+      background: rgba(15, 23, 42, 0.9);
+      padding: 2px 4px;
+      border-radius: 4px;
+      border: 1px solid rgba(31, 41, 55, 0.9);
+    }
+
+    .markdown-body pre {
+      background: rgba(15, 23, 42, 0.95);
+      border-radius: 8px;
+      padding: 8px;
+      overflow-x: auto;
+      border: 1px solid rgba(31, 41, 55, 0.9);
+    }
+
+    .markdown-body h1,
+    .markdown-body h2,
+    .markdown-body h3 {
+      margin: 6px 0 4px;
+      font-weight: 600;
+    }
+
+    .references-panel {
+      margin-top: 8px;
+      padding: 8px 9px;
+      border-radius: 10px;
+      border: 1px solid rgba(55, 65, 81, 0.9);
+      background: rgba(15, 23, 42, 0.96);
+      font-size: 12px;
+    }
+
+    .ref-title {
+      font-size: 12px;
+      font-weight: 500;
+      margin-bottom: 6px;
+    }
+
+    .ref-item + .ref-item {
+      margin-top: 6px;
+      padding-top: 6px;
+      border-top: 1px dashed rgba(31, 41, 55, 0.9);
+    }
+
+    .ref-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 2px;
+    }
+
+    .ref-index {
+      color: #93c5fd;
+    }
+
+    .ref-source {
+      color: #e5e7eb;
+    }
+
+    .ref-link {
+      margin-left: auto;
+      font-size: 11px;
+      color: #60a5fa;
+      text-decoration: none;
+    }
+
+    .ref-link:hover {
+      text-decoration: underline;
+    }
+
+    .ref-snippet {
+      color: #9ca3af;
+      font-size: 11px;
+    }
+
+    /* 限制 Markdown 内容在消息气泡内不溢出 */
+    .bubble .markdown-body {
+      overflow-wrap: break-word;
+      word-break: break-word;
+      white-space: normal;
+      max-width: 100%;
+    }
+
+    /* 防止代码块横向撑破容器 */
+    .bubble .markdown-body pre {
+      max-width: 100%;
+      overflow-x: auto;
+      white-space: pre-wrap;   /* 自动换行 */
+      word-break: break-word;
+    }
+
+    /* 防止内联代码撑破 */
+    .bubble .markdown-body code {
+      max-width: 100%;
+      white-space: break-spaces;
+    }
+
+    /* 图片自适应消息气泡宽度 */
+    .bubble .markdown-body img {
+      max-width: 100%;
+      height: auto;
+      border-radius: 6px;
+      display: block;
+      margin: 6px 0;
+    }
+
+    /* 表格不溢出 */
+    .bubble .markdown-body table {
+      max-width: 100%;
+      display: block;
+      overflow-x: auto;
+      border-collapse: collapse;
+    }
+
+    /* 链接换行 */
+    .bubble .markdown-body a {
+      word-break: break-all;
+    }
+
+    /* 修复引用区域内部换行 */
+    .references-panel {
+      overflow: hidden;
+    }
+
+    .ref-snippet {
+      white-space: normal;
+      word-break: break-word;
+    }
+
+    /* 让列表在气泡里面规矩一点，不再往左顶出圆角 */
+    .bubble .markdown-body ul,
+    .bubble .markdown-body ol {
+      margin-left: 0;              /* 不要再往外挤 */
+      padding-left: 1.2em;         /* 用内边距做缩进 */
+      margin-top: 4px;
+      margin-bottom: 4px;
+      list-style-position: outside; /* 子弹头在缩进内，仍然好看 */
+    }
+
+    /* 子项目之间的间距柔和一点 */
+    .bubble .markdown-body li {
+      margin: 2px 0;
+    }
+
+    /* blockquote 也可能顶出左侧，这里也拉回来 */
+    .bubble .markdown-body blockquote {
+      margin-left: 0;
+      margin-right: 0;
+      padding-left: 0.8em;
+      border-left: 3px solid rgba(148, 163, 184, 0.7);
+    }
+
   </style>
 </head>
 <body>
@@ -368,24 +532,52 @@
         <div v-if="msg.role === 'assistant'" class="msg-avatar assistant">AI</div>
         <div v-if="msg.role === 'user'" class="msg-avatar user">Me</div>
 
-        <div class="bubble" :class="msg.role">
-          <div v-html="formatMarkdown(msg.content)"></div>
+                <div class="bubble" :class="msg.role">
+          <!-- Markdown 渲染的回答内容 -->
+          <div class="markdown-body" v-html="formatMarkdown(msg.content)"></div>
 
           <div class="bubble-meta">
             <span>{{ msg.role === 'user' ? '提问' : '回答' }}</span>
             <span v-if="msg.time">{{ msg.time }}</span>
-            <span v-if="msg.role === 'assistant' && msg.context && msg.context.length"
-                  class="context-toggle"
-                  @click="msg.showContext = !msg.showContext">
-              {{ msg.showContext ? '收起上下文' : '查看引用片段' }}
+            <span
+              v-if="msg.role === 'assistant' && msg.context && msg.context.length"
+              class="context-toggle"
+              @click="msg.showContext = !msg.showContext"
+            >
+              {{ msg.showContext ? '收起引用来源' : '查看引用来源' }}
             </span>
           </div>
 
-          <div v-if="msg.showContext" class="context">
-            <div v-for="(chunk, i) in msg.context" :key="i">
-              <strong>片段 {{ i + 1 }}：</strong>
-              <div>{{ chunk }}</div>
-              <hr v-if="i < msg.context.length - 1" style="border:none;border-top:1px dashed rgba(148,163,184,0.4);margin:6px 0;">
+          <!-- 引用来源区域：展示片段 + 原文链接 -->
+          <div
+            v-if="msg.role === 'assistant' && msg.context && msg.context.length && msg.showContext"
+            class="references-panel"
+          >
+            <div class="ref-title">引用来源</div>
+            <div class="ref-list">
+              <div
+                class="ref-item"
+                v-for="(chunk, i) in msg.context"
+                :key="i"
+              >
+                <div class="ref-header">
+                  <span class="ref-index">[{{ i + 1 }}]</span>
+                  <span class="ref-source">
+                    {{ resolveSourceLabel(getChunkMeta(chunk)) }}
+                  </span>
+                  <a
+                    v-if="hasFileLink(getChunkMeta(chunk))"
+                    :href="buildFileUrl(getChunkMeta(chunk))"
+                    target="_blank"
+                    class="ref-link"
+                  >
+                    预览 / 下载原文
+                  </a>
+                </div>
+                <div class="ref-snippet">
+                  {{ snippet(getChunkText(chunk)) }}
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -421,8 +613,11 @@
   </div>
 </div>
 
+<!-- Markdown 渲染 -->
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 <!-- Vue 3（渐进式，CDN） -->
 <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+
 <script>
   const { createApp, ref, reactive, onMounted, nextTick } = Vue;
 
@@ -510,16 +705,70 @@
         messages.splice(0, messages.length);
       };
 
-      const formatMarkdown = (text) => {
-        // 简易处理：把 **加粗** 和换行转成粗体和 <br>
+            const formatMarkdown = (text) => {
         if (!text) return "";
-        let html = text
-          .replace(/&/g, "&amp;")
-          .replace(/</g, "&lt;")
-          .replace(/>/g, "&gt;");
-        html = html.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
-        html = html.replace(/\n/g, "<br>");
-        return html;
+        try {
+          return marked.parse(text);
+        } catch (e) {
+          console.error("Markdown 渲染失败", e);
+          // 出错则退回基础转义
+          return String(text)
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/\n/g, "<br>");
+        }
+      };
+
+      const getChunkText = (chunk) => {
+        if (!chunk) return "";
+        if (typeof chunk === "string") return chunk;
+        if (typeof chunk === "object" && chunk.text) return chunk.text;
+        return JSON.stringify(chunk);
+      };
+
+      const getChunkMeta = (chunk) => {
+        if (!chunk || typeof chunk !== "object") return null;
+        if (chunk.metadata && typeof chunk.metadata === "object") {
+          return chunk.metadata;
+        }
+        // 兼容：如果后端直接把 meta 平铺在对象上
+        return chunk;
+      };
+
+      const snippet = (text) => {
+        if (!text) return "";
+        const t = text.replace(/\s+/g, " ").trim();
+        return t.length > 120 ? t.slice(0, 120) + "..." : t;
+      };
+
+      const resolveSourceLabel = (meta) => {
+        if (!meta) return "未知来源";
+
+        if (meta.folder_name || meta.file_path) {
+          const name = meta.folder_name || "未命名文件夹";
+          const path = meta.file_path || "";
+          return `${name} · ${path}`;
+        }
+
+        if (meta.title || meta.doc_id) {
+          return meta.title || meta.doc_id || "手动导入文档";
+        }
+
+        return "未标注来源";
+      };
+
+      const hasFileLink = (meta) => {
+        return meta && meta.folder_id && meta.file_path;
+      };
+
+      const buildFileUrl = (meta) => {
+        if (!hasFileLink(meta)) return "#";
+        const params = new URLSearchParams({
+          folder_id: meta.folder_id,
+          path: meta.file_path
+        });
+        return "/files/raw?" + params.toString();
       };
 
       onMounted(() => {
@@ -535,7 +784,14 @@
         send,
         clearHistory,
         formatMarkdown,
-        messageList
+        messageList,
+        // 新增给模板用的辅助方法
+        getChunkText,
+        getChunkMeta,
+        snippet,
+        resolveSourceLabel,
+        hasFileLink,
+        buildFileUrl
       };
     }
   }).mount("#app");
