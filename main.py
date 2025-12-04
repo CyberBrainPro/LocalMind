@@ -15,6 +15,11 @@ from chromadb.config import Settings
 from openai import OpenAI
 from dotenv import load_dotenv
 
+from datetime import datetime
+from threading import Lock
+from fastapi import BackgroundTasks
+from typing import Dict
+
 
 # ========================
 #  环境变量
@@ -115,6 +120,20 @@ def serve_chat():
     return FileResponse(chat_path)
 
 
+@app.get("/admin")
+def serve_admin():
+    """
+    后台管理页面：文件夹配置 + 扫描进度
+    """
+    admin_path = os.path.join("static", "admin.html")
+    if not os.path.exists(admin_path):
+        return HTMLResponse(
+            "<h1>LocalMind Admin</h1><p>未找到 static/admin.html，请先创建。</p>",
+            status_code=404,
+        )
+    return FileResponse(admin_path)
+
+
 # ========================
 #  数据模型
 # ========================
@@ -138,6 +157,58 @@ class QueryResponse(BaseModel):
     answer: str
     context_chunks: List[str]
 
+# ========================
+#  后台管理：文件夹配置 & 扫描任务
+# ========================
+
+class FolderConfig(BaseModel):
+    id: str
+    name: str
+    path: str
+    created_at: datetime
+    last_scan_at: Optional[datetime] = None
+    last_scan_status: Optional[str] = None
+    last_scan_job_id: Optional[str] = None
+
+
+class FolderCreateRequest(BaseModel):
+    name: str
+    path: str
+
+
+class FolderListResponse(BaseModel):
+    items: List[FolderConfig]
+
+
+class ScanJob(BaseModel):
+    id: str
+    folder_id: str
+    status: str  # pending / running / completed / error
+    total_files: int = 0
+    processed_files: int = 0
+    error_message: Optional[str] = None
+    started_at: datetime
+    finished_at: Optional[datetime] = None
+
+
+class ScanJobStatusResponse(BaseModel):
+    id: str
+    folder_id: str
+    status: str
+    total_files: int
+    processed_files: int
+    error_message: Optional[str] = None
+    started_at: datetime
+    finished_at: Optional[datetime] = None
+
+
+# 内存中的配置和扫描任务（MVP 阶段，重启会丢）
+FOLDER_CONFIGS: Dict[str, FolderConfig] = {}
+SCAN_JOBS: Dict[str, ScanJob] = {}
+scan_lock = Lock()
+
+# 支持的文件后缀（MVP：只处理纯文本类型）
+SUPPORTED_EXTENSIONS = {".txt", ".md", ".markdown"}
 
 # ========================
 # 工具函数 - 文本切分
@@ -185,6 +256,83 @@ def chat_with_llm(question: str, context: str) -> str:
     )
 
     return completion.choices[0].message.content.strip()
+
+
+def run_scan_folder(job_id: str):
+    """后台任务：扫描文件夹并向量化"""
+    job = SCAN_JOBS.get(job_id)
+    if not job:
+        return
+
+    folder = FOLDER_CONFIGS.get(job.folder_id)
+    if not folder:
+        job.status = "error"
+        job.error_message = "FolderConfig not found"
+        job.finished_at = datetime.utcnow()
+        return
+
+    base_path = folder.path
+    if not os.path.isdir(base_path):
+        job.status = "error"
+        job.error_message = f"目录不存在：{base_path}"
+        job.finished_at = datetime.utcnow()
+        return
+
+    # 收集要处理的文件列表
+    file_paths: List[str] = []
+    for root, dirs, files in os.walk(base_path):
+        for fname in files:
+            ext = os.path.splitext(fname)[1].lower()
+            if ext in SUPPORTED_EXTENSIONS:
+                file_paths.append(os.path.join(root, fname))
+
+    job.total_files = len(file_paths)
+    job.status = "running"
+
+    # 简单策略：当前版本不做去重，后续可以按 folder_id/file_path 清理旧数据
+    for idx, file_path in enumerate(file_paths, start=1):
+        try:
+            with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
+                text = f.read()
+
+            if not text.strip():
+                job.processed_files = idx
+                continue
+
+            rel_path = os.path.relpath(file_path, base_path)
+            doc_id = f"{folder.id}:{rel_path}"
+
+            chunks = chunk_text(text)
+            embeddings = embed_texts(chunks)
+
+            ids = [f"{doc_id}::chunk_{i}" for i in range(len(chunks))]
+            metadatas = [
+                {
+                    "folder_id": folder.id,
+                    "folder_name": folder.name,
+                    "file_path": rel_path,
+                    "chunk_index": i,
+                }
+                for i in range(len(chunks))
+            ]
+
+            collection.add(
+                ids=ids,
+                documents=chunks,
+                embeddings=embeddings,
+                metadatas=metadatas,
+            )
+
+        except Exception as e:
+            job.error_message = f"{file_path}: {e}"
+        finally:
+            job.processed_files = idx
+
+    job.status = "completed"
+    job.finished_at = datetime.utcnow()
+    folder.last_scan_at = job.finished_at
+    folder.last_scan_status = job.status
+    folder.last_scan_job_id = job.id
 
 
 # ========================
@@ -261,3 +409,104 @@ def query_knowledge(req: QueryRequest):
     answer = chat_with_llm(req.question, context)
 
     return QueryResponse(answer=answer, context_chunks=docs)
+
+# ========================
+# API: 文件夹配置管理
+# ========================
+
+@app.get("/folders", response_model=FolderListResponse)
+def list_folders(q: Optional[str] = None):
+    """
+    列出当前配置的所有监控文件夹，可选按名称/路径模糊搜索
+    """
+    items = list(FOLDER_CONFIGS.values())
+    if q:
+        q_lower = q.lower()
+        items = [
+            f
+            for f in items
+            if q_lower in f.name.lower() or q_lower in f.path.lower()
+        ]
+    return FolderListResponse(items=items)
+
+
+@app.post("/folders", response_model=FolderConfig)
+def create_folder(req: FolderCreateRequest):
+    """
+    新增一个监控文件夹
+    """
+    path = os.path.abspath(req.path)
+    if not os.path.isdir(path):
+        raise HTTPException(status_code=400, detail="path 不是有效的文件夹")
+
+    folder_id = str(uuid.uuid4())
+    cfg = FolderConfig(
+        id=folder_id,
+        name=req.name,
+        path=path,
+        created_at=datetime.utcnow(),
+    )
+    FOLDER_CONFIGS[folder_id] = cfg
+    return cfg
+
+
+@app.delete("/folders/{folder_id}")
+def delete_folder(folder_id: str):
+    """
+    删除一个监控文件夹配置（不删除向量库中已有数据）
+    """
+    if folder_id in FOLDER_CONFIGS:
+        del FOLDER_CONFIGS[folder_id]
+        return {"ok": True}
+    raise HTTPException(status_code=404, detail="未找到该文件夹配置")
+
+# ========================
+# API: 扫描文件夹 & 进度查询
+# ========================
+
+@app.post("/folders/{folder_id}/scan", response_model=ScanJob)
+def start_scan(folder_id: str, background_tasks: BackgroundTasks):
+    """
+    启动一个扫描任务（后台执行），返回 job 信息
+    """
+    folder = FOLDER_CONFIGS.get(folder_id)
+    if not folder:
+        raise HTTPException(status_code=404, detail="未找到该文件夹配置")
+
+    job_id = str(uuid.uuid4())
+    job = ScanJob(
+        id=job_id,
+        folder_id=folder_id,
+        status="pending",
+        total_files=0,
+        processed_files=0,
+        started_at=datetime.utcnow(),
+    )
+    SCAN_JOBS[job_id] = job
+
+    background_tasks.add_task(run_scan_folder, job_id)
+    return job
+
+
+@app.get("/scan-jobs/{job_id}", response_model=ScanJobStatusResponse)
+def get_scan_job(job_id: str):
+    """
+    查询单个扫描任务的进度
+    """
+    job = SCAN_JOBS.get(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="未找到扫描任务")
+    return ScanJobStatusResponse(**job.dict())
+
+
+@app.get("/scan-jobs", response_model=List[ScanJobStatusResponse])
+def list_scan_jobs(folder_id: Optional[str] = None):
+    """
+    （可选）列出所有扫描任务，支持按 folder_id 过滤
+    """
+    jobs = list(SCAN_JOBS.values())
+    if folder_id:
+        jobs = [j for j in jobs if j.folder_id == folder_id]
+    return [ScanJobStatusResponse(**j.dict()) for j in jobs]
+
+
