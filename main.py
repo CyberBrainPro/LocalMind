@@ -19,6 +19,7 @@ from datetime import datetime
 from threading import Lock
 from fastapi import BackgroundTasks
 from typing import Dict
+from fastapi import Query
 
 
 # ========================
@@ -153,9 +154,14 @@ class QueryRequest(BaseModel):
     top_k: int = 5
 
 
+class ContextChunk(BaseModel):
+    text: str
+    metadata: Optional[dict] = None
+
+
 class QueryResponse(BaseModel):
     answer: str
-    context_chunks: List[str]
+    context_chunks: List[ContextChunk]
 
 # ========================
 #  后台管理：文件夹配置 & 扫描任务
@@ -398,17 +404,27 @@ def query_knowledge(req: QueryRequest):
         n_results=req.top_k,
     )
 
-    docs = result.get("documents", [[]])[0]
+    docs = (result.get("documents") or [[]])[0]
+    metas = (result.get("metadatas") or [[]])[0]
+
     if not docs:
         return QueryResponse(
             answer="知识库中没有相关内容，请先导入文档。",
             context_chunks=[],
         )
 
+    # 构造上下文字符串给 LLM 使用
     context = "\n\n---\n\n".join(docs)
+
     answer = chat_with_llm(req.question, context)
 
-    return QueryResponse(answer=answer, context_chunks=docs)
+    # 把文档 + 元数据一起返回前端
+    context_chunks = []
+    for i, d in enumerate(docs):
+        meta = metas[i] if i < len(metas) else None
+        context_chunks.append(ContextChunk(text=d, metadata=meta))
+
+    return QueryResponse(answer=answer, context_chunks=context_chunks)
 
 # ========================
 # API: 文件夹配置管理
@@ -429,6 +445,32 @@ def list_folders(q: Optional[str] = None):
         ]
     return FolderListResponse(items=items)
 
+@app.get("/files/raw")
+def get_raw_file(
+    folder_id: str = Query(..., description="FolderConfig 的 ID"),
+    path: str = Query(..., description="相对该 folder 的文件路径"),
+):
+    """
+    根据 folder_id + 相对路径，返回原始文件内容。
+    用于在前端“引用来源”中点击预览/下载。
+    """
+    folder = FOLDER_CONFIGS.get(folder_id)
+    if not folder:
+        raise HTTPException(status_code=404, detail="未找到对应的文件夹配置")
+
+    # 计算绝对路径，并做一次越界防护
+    base = os.path.realpath(folder.path)
+    target = os.path.realpath(os.path.join(folder.path, path))
+
+    if not target.startswith(base):
+        raise HTTPException(status_code=400, detail="非法路径")
+
+    if not os.path.exists(target):
+        raise HTTPException(status_code=404, detail="文件不存在")
+
+    # FileResponse 默认是 inline，浏览器会尽量预览，不行就下载
+    filename = os.path.basename(target)
+    return FileResponse(target, filename=filename)
 
 @app.post("/folders", response_model=FolderConfig)
 def create_folder(req: FolderCreateRequest):
