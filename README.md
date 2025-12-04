@@ -69,7 +69,7 @@
   <img src="/assets/screenshot-admin.png" width="85%" alt="LocalMind Chat UI">
 </p>
 
-<p align="center"><em>▲ LocalMind 内置管理界面，可查看和配置本地识别目录。</em></p>
+<p align="center"><em>▲ LocalMind 内置管理界面，可查看和配置本地知识库目录。</em></p>
 
 ---
 
