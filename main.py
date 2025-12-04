@@ -20,6 +20,7 @@ from threading import Lock
 from fastapi import BackgroundTasks
 from typing import Dict
 from fastapi import Query
+import json
 
 
 # ========================
@@ -208,13 +209,49 @@ class ScanJobStatusResponse(BaseModel):
     finished_at: Optional[datetime] = None
 
 
-# 内存中的配置和扫描任务（MVP 阶段，重启会丢）
+FOLDER_CONFIG_FILE = "./localmind_folders.json"
+
 FOLDER_CONFIGS: Dict[str, FolderConfig] = {}
 SCAN_JOBS: Dict[str, ScanJob] = {}
 scan_lock = Lock()
 
+
+def load_folder_configs():
+    """从本地 JSON 文件恢复文件夹配置"""
+    global FOLDER_CONFIGS
+    if not os.path.exists(FOLDER_CONFIG_FILE):
+        return
+    try:
+        with open(FOLDER_CONFIG_FILE, "r", encoding="utf-8") as f:
+            raw = json.load(f)
+        FOLDER_CONFIGS = {
+            fid: FolderConfig.parse_obj(cfg) for fid, cfg in raw.items()
+        }
+    except Exception as e:
+        print("[WARN] 加载本地文件夹配置失败：", e)
+
+
+def save_folder_configs():
+    """把当前文件夹配置持久化到 JSON（支持 datetime）"""
+    try:
+        # 用 Pydantic 的 json() 帮我们处理 datetime → ISO 字符串
+        data = {fid: json.loads(cfg.json()) for fid, cfg in FOLDER_CONFIGS.items()}
+        with open(FOLDER_CONFIG_FILE, "w", encoding="utf-8") as f:
+            json.dump(data, f, ensure_ascii=False, indent=2)
+    except Exception as e:
+        print("[WARN] 保存本地文件夹配置失败：", e)
+
+# 启动时尝试恢复历史配置
+load_folder_configs()
+
 # 支持的文件后缀（MVP：只处理纯文本类型）
 SUPPORTED_EXTENSIONS = {".txt", ".md", ".markdown"}
+
+# 扫描时要忽略的文件扩展（excalidraw 是特殊格式，不能当 md 向量化）
+IGNORED_EXTENSIONS = {
+    ".excalidraw.md",  # Excalidraw 的复合格式，不是文本文档
+    ".excalidraw",     # 如果有人用这种后缀
+}
 
 # ========================
 # 工具函数 - 文本切分
@@ -288,6 +325,10 @@ def run_scan_folder(job_id: str):
     file_paths: List[str] = []
     for root, dirs, files in os.walk(base_path):
         for fname in files:
+            # 判断是否在忽略列表
+            lower_name = fname.lower()
+            if any(lower_name.endswith(ext) for ext in IGNORED_EXTENSIONS):
+                continue  # 直接跳过
             ext = os.path.splitext(fname)[1].lower()
             if ext in SUPPORTED_EXTENSIONS:
                 file_paths.append(os.path.join(root, fname))
@@ -339,6 +380,7 @@ def run_scan_folder(job_id: str):
     folder.last_scan_at = job.finished_at
     folder.last_scan_status = job.status
     folder.last_scan_job_id = job.id
+    save_folder_configs()
 
 
 # ========================
@@ -456,7 +498,24 @@ def get_raw_file(
     """
     folder = FOLDER_CONFIGS.get(folder_id)
     if not folder:
+        # 尝试从本地 JSON 重新加载一遍（可能是刚重启服务）
+        load_folder_configs()
+        folder = FOLDER_CONFIGS.get(folder_id)
+
+    if not folder:
         raise HTTPException(status_code=404, detail="未找到对应的文件夹配置")
+
+    base = os.path.realpath(folder.path)
+    target = os.path.realpath(os.path.join(folder.path, path))
+
+    if not target.startswith(base):
+        raise HTTPException(status_code=400, detail="非法路径")
+
+    if not os.path.exists(target):
+        raise HTTPException(status_code=404, detail="文件不存在")
+
+    filename = os.path.basename(target)
+    return FileResponse(target, filename=filename)
 
     # 计算绝对路径，并做一次越界防护
     base = os.path.realpath(folder.path)
@@ -489,6 +548,7 @@ def create_folder(req: FolderCreateRequest):
         created_at=datetime.utcnow(),
     )
     FOLDER_CONFIGS[folder_id] = cfg
+    save_folder_configs()
     return cfg
 
 
@@ -499,6 +559,7 @@ def delete_folder(folder_id: str):
     """
     if folder_id in FOLDER_CONFIGS:
         del FOLDER_CONFIGS[folder_id]
+        save_folder_configs()
         return {"ok": True}
     raise HTTPException(status_code=404, detail="未找到该文件夹配置")
 
