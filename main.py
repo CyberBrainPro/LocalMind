@@ -6,6 +6,8 @@ from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi import BackgroundTasks
+from fastapi.responses import RedirectResponse
 
 from pydantic import BaseModel
 
@@ -17,7 +19,6 @@ from dotenv import load_dotenv
 
 from datetime import datetime
 from threading import Lock
-from fastapi import BackgroundTasks
 from typing import Dict
 from fastapi import Query
 import json
@@ -93,19 +94,9 @@ app.mount("/website", StaticFiles(directory="website"), name="website")
 #  页面路由：Landing Page + Chat
 # ========================
 
-@app.get("/", response_class=HTMLResponse)
-def serve_index():
-    """
-    访问根路径 / 时，返回 website/index.html
-    """
-    index_path = os.path.join("website", "index.html")
-    if not os.path.exists(index_path):
-        # 如果忘记放文件，给个提示
-        return HTMLResponse(
-            "<h1>LocalMind</h1><p>未找到 website/index.html，请确认文件路径。</p>",
-            status_code=404,
-        )
-    return FileResponse(index_path)
+@app.get("/")
+def index():
+    return RedirectResponse(url="/chat")
 
 
 @app.get("/chat")

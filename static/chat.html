@@ -1,504 +1,523 @@
 <!doctype html>
 <html lang="zh-CN">
 <head>
-  <meta charset="UTF-8" />
+  <meta charset="UTF-8"/>
   <title>LocalMind Chat</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <!-- 简单现代化样式 -->
   <style>
-    :root {
-      color-scheme: dark light;
-      --bg: #0f172a;
-      --bg-light: #111827;
-      --accent: #3b82f6;
-      --accent-soft: rgba(59,130,246,0.12);
-      --border: rgba(148,163,184,0.35);
-      --text: #e5e7eb;
-      --text-soft: #9ca3af;
-    }
+      :root {
+          color-scheme: dark light;
+          --bg: #0f172a;
+          --bg-light: #111827;
+          --accent: #3b82f6;
+          --accent-soft: rgba(59, 130, 246, 0.12);
+          --border: rgba(148, 163, 184, 0.35);
+          --text: #e5e7eb;
+          --text-soft: #9ca3af;
+      }
 
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-    }
+      * {
+          box-sizing: border-box;
+          margin: 0;
+          padding: 0;
+      }
 
-    body {
-      font-family: system-ui, -apple-system, BlinkMacSystemFont, "SF Pro Text",
-        "Segoe UI", sans-serif;
-      background: radial-gradient(circle at top, #1d283a 0, #020617 50%, #000 100%);
-      color: var(--text);
-      min-height: 100vh;
-      display: flex;
-      align-items: stretch;
-      justify-content: center;
-      padding: 16px;
-    }
+      body {
+          font-family: system-ui, -apple-system, BlinkMacSystemFont, "SF Pro Text",
+          "Segoe UI", sans-serif;
+          background: radial-gradient(circle at top, #1d283a 0, #020617 50%, #000 100%);
+          color: var(--text);
+          min-height: 100vh;
+          display: flex;
+          align-items: stretch;
+          justify-content: center;
+          padding: 16px;
+      }
 
-    #app {
-      width: 100%;
-      max-width: 960px;
-      background: linear-gradient(
-          135deg,
-          rgba(148, 163, 184, 0.12),
-          rgba(15, 23, 42, 0.96)
-        );
-      border-radius: 24px;
-      border: 1px solid rgba(148, 163, 184, 0.35);
-      box-shadow:
-        0 24px 60px rgba(15, 23, 42, 0.95),
-        0 0 0 1px rgba(15, 23, 42, 0.6);
-      display: flex;
-      flex-direction: column;
-      overflow: hidden;
-    }
-
-    .header {
-      padding: 16px 20px;
-      border-bottom: 1px solid rgba(148, 163, 184, 0.35);
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      backdrop-filter: blur(16px);
-      background: linear-gradient(
-        to bottom,
-        rgba(15, 23, 42, 0.92),
-        rgba(15, 23, 42, 0.85)
-      );
-    }
-
-    .brand {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-    }
-
-    .logo {
-      width: 30px;
-      height: 30px;
-      border-radius: 12px;
-      background: radial-gradient(circle at 30% 20%, #60a5fa, #1d4ed8);
-      box-shadow:
-        0 0 0 1px rgba(191, 219, 254, 0.35),
-        0 12px 24px rgba(15, 23, 42, 0.9);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 16px;
-      font-weight: 700;
-      color: #e5f0ff;
-    }
-
-    .title {
-      font-size: 16px;
-      font-weight: 600;
-      letter-spacing: 0.02em;
-    }
-
-    .subtitle {
-      font-size: 12px;
-      color: var(--text-soft);
-    }
-
-    .header-right {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      font-size: 12px;
-      color: var(--text-soft);
-    }
-
-    .status-dot {
-      width: 8px;
-      height: 8px;
-      border-radius: 999px;
-      background: #22c55e;
-      box-shadow: 0 0 0 6px rgba(34, 197, 94, 0.25);
-    }
-
-    .badge {
-      border-radius: 999px;
-      border: 1px solid rgba(148, 163, 184, 0.55);
-      padding: 4px 10px;
-      font-size: 11px;
-      letter-spacing: 0.05em;
-      text-transform: uppercase;
-      color: var(--text-soft);
-    }
-
-    .main {
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-      padding: 12px 16px 10px;
-      gap: 8px;
-    }
-
-    .messages {
-      flex: 1;
-      overflow-y: auto;
-      padding: 8px 4px;
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-    }
-
-    .msg-row {
-      display: flex;
-      gap: 8px;
-      align-items: flex-start;
-    }
-
-    .msg-row.user {
-      justify-content: flex-end;
-    }
-
-    .msg-avatar {
-      width: 24px;
-      height: 24px;
-      border-radius: 999px;
-      flex-shrink: 0;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 11px;
-      font-weight: 600;
-    }
-
-    .msg-avatar.user {
-      background: linear-gradient(135deg, #38bdf8, #0ea5e9);
-      color: #0f172a;
-    }
-
-    .msg-avatar.assistant {
-      background: linear-gradient(135deg, #a855f7, #6366f1);
-      color: #f9fafb;
-    }
-
-    .bubble {
-      max-width: 80%;
-      padding: 8px 10px;
-      border-radius: 14px;
-      font-size: 14px;
-      line-height: 1.5;
-      border: 1px solid transparent;
-      box-shadow: 0 8px 18px rgba(15, 23, 42, 0.8);
-    }
-
-    .bubble.user {
-      background: linear-gradient(135deg, #1d4ed8, #3b82f6);
-      color: #eff6ff;
-      border-color: rgba(191, 219, 254, 0.5);
-      border-bottom-right-radius: 4px;
-    }
-
-    .bubble.assistant {
-      background: radial-gradient(circle at top left, #1f2937, #020617);
-      border-color: rgba(55, 65, 81, 0.9);
-      border-bottom-left-radius: 4px;
-    }
-
-    .bubble-meta {
-      margin-top: 4px;
-      font-size: 11px;
-      color: var(--text-soft);
-      display: flex;
-      justify-content: space-between;
-      gap: 8px;
-      opacity: 0.85;
-    }
-
-    .context-toggle {
-      cursor: pointer;
-      color: #93c5fd;
-      text-decoration: underline;
-    }
-
-    .context {
-      margin-top: 6px;
-      padding: 6px 8px;
-      border-radius: 10px;
-      background: rgba(15, 23, 42, 0.95);
-      border: 1px solid rgba(148, 163, 184, 0.35);
-      font-size: 11px;
-      color: var(--text-soft);
-      max-height: 140px;
-      overflow-y: auto;
-      white-space: pre-wrap;
-    }
-
-    .empty-tip {
-      text-align: center;
-      margin-top: 20px;
-      font-size: 13px;
-      color: var(--text-soft);
-    }
-
-    .input-bar {
-      border-top: 1px solid rgba(148, 163, 184, 0.35);
-      padding: 10px 12px 12px;
-      background: linear-gradient(
-        to top,
-        rgba(15,23,42,0.98),
-        rgba(15,23,42,0.92)
-      );
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-    }
-
-    .input-row {
-      display: flex;
-      gap: 8px;
-      align-items: flex-end;
-    }
-
-    textarea {
-      resize: none;
-      width: 100%;
-      min-height: 44px;
-      max-height: 120px;
-      padding: 8px 10px;
-      border-radius: 12px;
-      border: 1px solid rgba(148, 163, 184, 0.7);
-      background: rgba(15, 23, 42, 0.95);
-      color: var(--text);
-      font-family: inherit;
-      font-size: 14px;
-      line-height: 1.5;
-      outline: none;
-      transition: border-color 0.15s ease, box-shadow 0.15s ease,
-        background 0.15s ease;
-    }
-
-    textarea:focus {
-      border-color: var(--accent);
-      box-shadow: 0 0 0 1px rgba(59,130,246,0.5);
-      background: rgba(15, 23, 42, 0.98);
-    }
-
-    .btn {
-      cursor: pointer;
-      border: none;
-      border-radius: 12px;
-      padding: 9px 14px;
-      font-size: 13px;
-      font-weight: 500;
-      background: linear-gradient(135deg, #2563eb, #3b82f6);
-      color: #eff6ff;
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      box-shadow:
-        0 12px 24px rgba(37, 99, 235, 0.65),
-        0 0 0 1px rgba(15, 23, 42, 0.9);
-      white-space: nowrap;
-    }
-
-    .btn:disabled {
-      opacity: 0.6;
-      cursor: default;
-      box-shadow: none;
-    }
-
-    .btn-secondary {
-      background: rgba(15, 23, 42, 0.9);
-      color: var(--text-soft);
-      border: 1px solid rgba(148, 163, 184, 0.7);
-      box-shadow: none;
-    }
-
-    .footer-row {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      font-size: 11px;
-      color: var(--text-soft);
-      padding: 0 2px;
-    }
-
-    .error {
-      color: #fecaca;
-    }
-
-    @media (max-width: 640px) {
       #app {
-        border-radius: 18px;
-        padding: 0;
+          width: 100%;
+          max-width: 960px;
+          background: linear-gradient(
+                  135deg,
+                  rgba(148, 163, 184, 0.12),
+                  rgba(15, 23, 42, 0.96)
+          );
+          border-radius: 24px;
+          border: 1px solid rgba(148, 163, 184, 0.35);
+          box-shadow: 0 24px 60px rgba(15, 23, 42, 0.95),
+          0 0 0 1px rgba(15, 23, 42, 0.6);
+          display: flex;
+          flex-direction: column;
+          overflow: hidden;
       }
+
+      .header {
+          padding: 16px 20px;
+          border-bottom: 1px solid rgba(148, 163, 184, 0.35);
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          backdrop-filter: blur(16px);
+          background: linear-gradient(
+                  to bottom,
+                  rgba(15, 23, 42, 0.92),
+                  rgba(15, 23, 42, 0.85)
+          );
+      }
+
+      .brand {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+      }
+
+      .logo {
+          width: 30px;
+          height: 30px;
+          border-radius: 12px;
+          background: radial-gradient(circle at 30% 20%, #60a5fa, #1d4ed8);
+          box-shadow: 0 0 0 1px rgba(191, 219, 254, 0.35),
+          0 12px 24px rgba(15, 23, 42, 0.9);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 16px;
+          font-weight: 700;
+          color: #e5f0ff;
+      }
+
+      .title {
+          font-size: 16px;
+          font-weight: 600;
+          letter-spacing: 0.02em;
+      }
+
+      .subtitle {
+          font-size: 12px;
+          color: var(--text-soft);
+      }
+
+      .header-right {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          font-size: 12px;
+          color: var(--text-soft);
+      }
+
+      .status-dot {
+          width: 8px;
+          height: 8px;
+          border-radius: 999px;
+          background: #22c55e;
+          box-shadow: 0 0 0 6px rgba(34, 197, 94, 0.25);
+      }
+
+      .badge {
+          border-radius: 999px;
+          border: 1px solid rgba(148, 163, 184, 0.55);
+          padding: 4px 10px;
+          font-size: 11px;
+          letter-spacing: 0.05em;
+          text-transform: uppercase;
+          color: var(--text-soft);
+      }
+
       .main {
-        padding: 8px 10px;
+          flex: 1;
+          display: flex;
+          flex-direction: column;
+          padding: 12px 16px 10px;
+          gap: 8px;
       }
-      .input-bar {
-        padding: 8px 8px 10px;
+
+      .messages {
+          flex: 1;
+          overflow-y: auto;
+          padding: 8px 4px;
+          display: flex;
+          flex-direction: column;
+          gap: 10px;
       }
+
+      .msg-row {
+          display: flex;
+          gap: 8px;
+          align-items: flex-start;
+      }
+
+      .msg-row.user {
+          justify-content: flex-end;
+      }
+
+      .msg-avatar {
+          width: 24px;
+          height: 24px;
+          border-radius: 999px;
+          flex-shrink: 0;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 11px;
+          font-weight: 600;
+      }
+
+      .msg-avatar.user {
+          background: linear-gradient(135deg, #38bdf8, #0ea5e9);
+          color: #0f172a;
+      }
+
+      .msg-avatar.assistant {
+          background: linear-gradient(135deg, #a855f7, #6366f1);
+          color: #f9fafb;
+      }
+
       .bubble {
-        max-width: 100%;
+          max-width: 80%;
+          padding: 8px 10px;
+          border-radius: 14px;
+          font-size: 14px;
+          line-height: 1.5;
+          border: 1px solid transparent;
+          box-shadow: 0 8px 18px rgba(15, 23, 42, 0.8);
       }
-    }
 
-        .markdown-body {
-      font-size: 14px;
-      line-height: 1.7;
-    }
+      .bubble.user {
+          background: linear-gradient(135deg, #1d4ed8, #3b82f6);
+          color: #eff6ff;
+          border-color: rgba(191, 219, 254, 0.5);
+          border-bottom-right-radius: 4px;
+      }
 
-    .markdown-body p {
-      margin: 4px 0;
-    }
+      .bubble.assistant {
+          background: radial-gradient(circle at top left, #1f2937, #020617);
+          border-color: rgba(55, 65, 81, 0.9);
+          border-bottom-left-radius: 4px;
+      }
 
-    .markdown-body code {
-      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
-        "Liberation Mono", "Courier New", monospace;
-      font-size: 12px;
-      background: rgba(15, 23, 42, 0.9);
-      padding: 2px 4px;
-      border-radius: 4px;
-      border: 1px solid rgba(31, 41, 55, 0.9);
-    }
+      .bubble-meta {
+          margin-top: 4px;
+          font-size: 11px;
+          color: var(--text-soft);
+          display: flex;
+          justify-content: space-between;
+          gap: 8px;
+          opacity: 0.85;
+      }
 
-    .markdown-body pre {
-      background: rgba(15, 23, 42, 0.95);
-      border-radius: 8px;
-      padding: 8px;
-      overflow-x: auto;
-      border: 1px solid rgba(31, 41, 55, 0.9);
-    }
+      .context-toggle {
+          cursor: pointer;
+          color: #93c5fd;
+          text-decoration: underline;
+      }
 
-    .markdown-body h1,
-    .markdown-body h2,
-    .markdown-body h3 {
-      margin: 6px 0 4px;
-      font-weight: 600;
-    }
+      .context {
+          margin-top: 6px;
+          padding: 6px 8px;
+          border-radius: 10px;
+          background: rgba(15, 23, 42, 0.95);
+          border: 1px solid rgba(148, 163, 184, 0.35);
+          font-size: 11px;
+          color: var(--text-soft);
+          max-height: 140px;
+          overflow-y: auto;
+          white-space: pre-wrap;
+      }
 
-    .references-panel {
-      margin-top: 8px;
-      padding: 8px 9px;
-      border-radius: 10px;
-      border: 1px solid rgba(55, 65, 81, 0.9);
-      background: rgba(15, 23, 42, 0.96);
-      font-size: 12px;
-    }
+      .empty-tip {
+          text-align: center;
+          margin-top: 20px;
+          font-size: 13px;
+          color: var(--text-soft);
+      }
 
-    .ref-title {
-      font-size: 12px;
-      font-weight: 500;
-      margin-bottom: 6px;
-    }
+      .input-bar {
+          border-top: 1px solid rgba(148, 163, 184, 0.35);
+          padding: 10px 12px 12px;
+          background: linear-gradient(
+                  to top,
+                  rgba(15, 23, 42, 0.98),
+                  rgba(15, 23, 42, 0.92)
+          );
+          display: flex;
+          flex-direction: column;
+          gap: 8px;
+      }
 
-    .ref-item + .ref-item {
-      margin-top: 6px;
-      padding-top: 6px;
-      border-top: 1px dashed rgba(31, 41, 55, 0.9);
-    }
+      .input-row {
+          display: flex;
+          gap: 8px;
+          align-items: flex-end;
+      }
 
-    .ref-header {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      margin-bottom: 2px;
-    }
+      textarea {
+          resize: none;
+          width: 100%;
+          min-height: 44px;
+          max-height: 120px;
+          padding: 8px 10px;
+          border-radius: 12px;
+          border: 1px solid rgba(148, 163, 184, 0.7);
+          background: rgba(15, 23, 42, 0.95);
+          color: var(--text);
+          font-family: inherit;
+          font-size: 14px;
+          line-height: 1.5;
+          outline: none;
+          transition: border-color 0.15s ease, box-shadow 0.15s ease,
+          background 0.15s ease;
+      }
 
-    .ref-index {
-      color: #93c5fd;
-    }
+      textarea:focus {
+          border-color: var(--accent);
+          box-shadow: 0 0 0 1px rgba(59, 130, 246, 0.5);
+          background: rgba(15, 23, 42, 0.98);
+      }
 
-    .ref-source {
-      color: #e5e7eb;
-    }
+      .btn {
+          cursor: pointer;
+          border: none;
+          border-radius: 12px;
+          padding: 9px 14px;
+          font-size: 13px;
+          font-weight: 500;
+          background: linear-gradient(135deg, #2563eb, #3b82f6);
+          color: #eff6ff;
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+          box-shadow: 0 12px 24px rgba(37, 99, 235, 0.65),
+          0 0 0 1px rgba(15, 23, 42, 0.9);
+          white-space: nowrap;
+      }
 
-    .ref-link {
-      margin-left: auto;
-      font-size: 11px;
-      color: #60a5fa;
-      text-decoration: none;
-    }
+      .btn:disabled {
+          opacity: 0.6;
+          cursor: default;
+          box-shadow: none;
+      }
 
-    .ref-link:hover {
-      text-decoration: underline;
-    }
+      .btn-secondary {
+          background: rgba(15, 23, 42, 0.9);
+          color: var(--text-soft);
+          border: 1px solid rgba(148, 163, 184, 0.7);
+          box-shadow: none;
+      }
 
-    .ref-snippet {
-      color: #9ca3af;
-      font-size: 11px;
-    }
+      .footer-row {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          font-size: 11px;
+          color: var(--text-soft);
+          padding: 0 2px;
+      }
 
-    /* 限制 Markdown 内容在消息气泡内不溢出 */
-    .bubble .markdown-body {
-      overflow-wrap: break-word;
-      word-break: break-word;
-      white-space: normal;
-      max-width: 100%;
-    }
+      .error {
+          color: #fecaca;
+      }
 
-    /* 防止代码块横向撑破容器 */
-    .bubble .markdown-body pre {
-      max-width: 100%;
-      overflow-x: auto;
-      white-space: pre-wrap;   /* 自动换行 */
-      word-break: break-word;
-    }
+      @media (max-width: 640px) {
+          #app {
+              border-radius: 18px;
+              padding: 0;
+          }
 
-    /* 防止内联代码撑破 */
-    .bubble .markdown-body code {
-      max-width: 100%;
-      white-space: break-spaces;
-    }
+          .main {
+              padding: 8px 10px;
+          }
 
-    /* 图片自适应消息气泡宽度 */
-    .bubble .markdown-body img {
-      max-width: 100%;
-      height: auto;
-      border-radius: 6px;
-      display: block;
-      margin: 6px 0;
-    }
+          .input-bar {
+              padding: 8px 8px 10px;
+          }
 
-    /* 表格不溢出 */
-    .bubble .markdown-body table {
-      max-width: 100%;
-      display: block;
-      overflow-x: auto;
-      border-collapse: collapse;
-    }
+          .bubble {
+              max-width: 100%;
+          }
+      }
 
-    /* 链接换行 */
-    .bubble .markdown-body a {
-      word-break: break-all;
-    }
+      .markdown-body {
+          font-size: 14px;
+          line-height: 1.7;
+      }
 
-    /* 修复引用区域内部换行 */
-    .references-panel {
-      overflow: hidden;
-    }
+      .markdown-body p {
+          margin: 4px 0;
+      }
 
-    .ref-snippet {
-      white-space: normal;
-      word-break: break-word;
-    }
+      .markdown-body code {
+          font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+          "Liberation Mono", "Courier New", monospace;
+          font-size: 12px;
+          background: rgba(15, 23, 42, 0.9);
+          padding: 2px 4px;
+          border-radius: 4px;
+          border: 1px solid rgba(31, 41, 55, 0.9);
+      }
 
-    /* 让列表在气泡里面规矩一点，不再往左顶出圆角 */
-    .bubble .markdown-body ul,
-    .bubble .markdown-body ol {
-      margin-left: 0;              /* 不要再往外挤 */
-      padding-left: 1.2em;         /* 用内边距做缩进 */
-      margin-top: 4px;
-      margin-bottom: 4px;
-      list-style-position: outside; /* 子弹头在缩进内，仍然好看 */
-    }
+      .markdown-body pre {
+          background: rgba(15, 23, 42, 0.95);
+          border-radius: 8px;
+          padding: 8px;
+          overflow-x: auto;
+          border: 1px solid rgba(31, 41, 55, 0.9);
+      }
 
-    /* 子项目之间的间距柔和一点 */
-    .bubble .markdown-body li {
-      margin: 2px 0;
-    }
+      .markdown-body h1,
+      .markdown-body h2,
+      .markdown-body h3 {
+          margin: 6px 0 4px;
+          font-weight: 600;
+      }
 
-    /* blockquote 也可能顶出左侧，这里也拉回来 */
-    .bubble .markdown-body blockquote {
-      margin-left: 0;
-      margin-right: 0;
-      padding-left: 0.8em;
-      border-left: 3px solid rgba(148, 163, 184, 0.7);
-    }
+      .references-panel {
+          margin-top: 8px;
+          padding: 8px 9px;
+          border-radius: 10px;
+          border: 1px solid rgba(55, 65, 81, 0.9);
+          background: rgba(15, 23, 42, 0.96);
+          font-size: 12px;
+      }
+
+      .ref-title {
+          font-size: 12px;
+          font-weight: 500;
+          margin-bottom: 6px;
+      }
+
+      .ref-item + .ref-item {
+          margin-top: 6px;
+          padding-top: 6px;
+          border-top: 1px dashed rgba(31, 41, 55, 0.9);
+      }
+
+      .ref-header {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          margin-bottom: 2px;
+      }
+
+      .ref-index {
+          color: #93c5fd;
+      }
+
+      .ref-source {
+          color: #e5e7eb;
+      }
+
+      .ref-link {
+          margin-left: auto;
+          font-size: 11px;
+          color: #60a5fa;
+          text-decoration: none;
+      }
+
+      .ref-link:hover {
+          text-decoration: underline;
+      }
+
+      .ref-snippet {
+          color: #9ca3af;
+          font-size: 11px;
+      }
+
+      /* 限制 Markdown 内容在消息气泡内不溢出 */
+      .bubble .markdown-body {
+          overflow-wrap: break-word;
+          word-break: break-word;
+          white-space: normal;
+          max-width: 100%;
+      }
+
+      /* 防止代码块横向撑破容器 */
+      .bubble .markdown-body pre {
+          max-width: 100%;
+          overflow-x: auto;
+          white-space: pre-wrap; /* 自动换行 */
+          word-break: break-word;
+      }
+
+      /* 防止内联代码撑破 */
+      .bubble .markdown-body code {
+          max-width: 100%;
+          white-space: break-spaces;
+      }
+
+      /* 图片自适应消息气泡宽度 */
+      .bubble .markdown-body img {
+          max-width: 100%;
+          height: auto;
+          border-radius: 6px;
+          display: block;
+          margin: 6px 0;
+      }
+
+      /* 表格不溢出 */
+      .bubble .markdown-body table {
+          max-width: 100%;
+          display: block;
+          overflow-x: auto;
+          border-collapse: collapse;
+      }
+
+      /* 链接换行 */
+      .bubble .markdown-body a {
+          word-break: break-all;
+      }
+
+      /* 修复引用区域内部换行 */
+      .references-panel {
+          overflow: hidden;
+      }
+
+      .ref-snippet {
+          white-space: normal;
+          word-break: break-word;
+      }
+
+      /* 让列表在气泡里面规矩一点，不再往左顶出圆角 */
+      .bubble .markdown-body ul,
+      .bubble .markdown-body ol {
+          margin-left: 0; /* 不要再往外挤 */
+          padding-left: 1.2em; /* 用内边距做缩进 */
+          margin-top: 4px;
+          margin-bottom: 4px;
+          list-style-position: outside; /* 子弹头在缩进内，仍然好看 */
+      }
+
+      /* 子项目之间的间距柔和一点 */
+      .bubble .markdown-body li {
+          margin: 2px 0;
+      }
+
+      /* blockquote 也可能顶出左侧，这里也拉回来 */
+      .bubble .markdown-body blockquote {
+          margin-left: 0;
+          margin-right: 0;
+          padding-left: 0.8em;
+          border-left: 3px solid rgba(148, 163, 184, 0.7);
+      }
+
+      .nav-link {
+          padding: 6px 10px;
+          border-radius: 8px;
+          background: rgba(59, 130, 246, 0.15);
+          border: 1px solid rgba(59, 130, 246, 0.4);
+          color: #93c5fd;
+          text-decoration: none;
+          font-size: 12px;
+          margin-right: 12px;
+          transition: 0.15s ease;
+      }
+
+      .nav-link:hover {
+          background: rgba(59, 130, 246, 0.35);
+          border-color: rgba(147, 197, 253, 0.8);
+          color: #e0f2fe;
+      }
+
 
   </style>
 </head>
@@ -516,6 +535,7 @@
       <div class="status-dot"></div>
       <span>Backend: {{ backendUrl }}</span>
       <span class="badge">MVP</span>
+      <a href="/admin" class="nav-link">管理页面</a>
     </div>
   </div>
 
@@ -532,7 +552,7 @@
         <div v-if="msg.role === 'assistant'" class="msg-avatar assistant">AI</div>
         <div v-if="msg.role === 'user'" class="msg-avatar user">Me</div>
 
-                <div class="bubble" :class="msg.role">
+        <div class="bubble" :class="msg.role">
           <!-- Markdown 渲染的回答内容 -->
           <div class="markdown-body" v-html="formatMarkdown(msg.content)"></div>
 
@@ -540,9 +560,9 @@
             <span>{{ msg.role === 'user' ? '提问' : '回答' }}</span>
             <span v-if="msg.time">{{ msg.time }}</span>
             <span
-              v-if="msg.role === 'assistant' && msg.context && msg.context.length"
-              class="context-toggle"
-              @click="msg.showContext = !msg.showContext"
+                v-if="msg.role === 'assistant' && msg.context && msg.context.length"
+                class="context-toggle"
+                @click="msg.showContext = !msg.showContext"
             >
               {{ msg.showContext ? '收起引用来源' : '查看引用来源' }}
             </span>
@@ -550,15 +570,15 @@
 
           <!-- 引用来源区域：展示片段 + 原文链接 -->
           <div
-            v-if="msg.role === 'assistant' && msg.context && msg.context.length && msg.showContext"
-            class="references-panel"
+              v-if="msg.role === 'assistant' && msg.context && msg.context.length && msg.showContext"
+              class="references-panel"
           >
             <div class="ref-title">引用来源</div>
             <div class="ref-list">
               <div
-                class="ref-item"
-                v-for="(chunk, i) in msg.context"
-                :key="i"
+                  class="ref-item"
+                  v-for="(chunk, i) in msg.context"
+                  :key="i"
               >
                 <div class="ref-header">
                   <span class="ref-index">[{{ i + 1 }}]</span>
@@ -566,10 +586,10 @@
                     {{ resolveSourceLabel(getChunkMeta(chunk)) }}
                   </span>
                   <a
-                    v-if="hasFileLink(getChunkMeta(chunk))"
-                    :href="buildFileUrl(getChunkMeta(chunk))"
-                    target="_blank"
-                    class="ref-link"
+                      v-if="hasFileLink(getChunkMeta(chunk))"
+                      :href="buildFileUrl(getChunkMeta(chunk))"
+                      target="_blank"
+                      class="ref-link"
                   >
                     预览 / 下载原文
                   </a>
@@ -587,11 +607,11 @@
     <div class="input-bar">
       <div class="input-row">
         <textarea
-          v-model="input"
-          :rows="1"
-          @keydown.enter.exact.prevent="send"
-          @keydown.shift.enter.stop
-          placeholder="输入你的问题，Enter 发送，Shift+Enter 换行…"
+            v-model="input"
+            :rows="1"
+            @keydown.enter.exact.prevent="send"
+            @keydown.shift.enter.stop
+            placeholder="输入你的问题，Enter 发送，Shift+Enter 换行…"
         ></textarea>
         <button class="btn" @click="send" :disabled="sending || !input.trim()">
           <span v-if="!sending">发送</span>
@@ -619,182 +639,182 @@
 <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
 
 <script>
-  const { createApp, ref, reactive, onMounted, nextTick } = Vue;
+    const {createApp, ref, reactive, onMounted, nextTick} = Vue;
 
-  createApp({
-    setup() {
-      // 后端地址：如果你把 chat.html 通过 FastAPI 同源提供，可以用相对路径 "/query"
-      // 如果是直接 file:// 打开，请改为完整地址，如 "http://127.0.0.1:8787/query"
-      const backendBase = "http://127.0.0.1:8787";
+    createApp({
+        setup() {
+            // 后端地址：如果你把 chat.html 通过 FastAPI 同源提供，可以用相对路径 "/query"
+            // 如果是直接 file:// 打开，请改为完整地址，如 "http://127.0.0.1:8787/query"
+            const backendBase = "http://127.0.0.1:8787";
 
-      const backendUrl = backendBase;
-      const messages = reactive([]);
-      const input = ref("");
-      const sending = ref(false);
-      const error = ref("");
+            const backendUrl = backendBase;
+            const messages = reactive([]);
+            const input = ref("");
+            const sending = ref(false);
+            const error = ref("");
 
-      const messageList = ref(null);
+            const messageList = ref(null);
 
-      const scrollToBottom = () => {
-        nextTick(() => {
-          if (messageList.value) {
-            messageList.value.scrollTop = messageList.value.scrollHeight;
-          }
-        });
-      };
+            const scrollToBottom = () => {
+                nextTick(() => {
+                    if (messageList.value) {
+                        messageList.value.scrollTop = messageList.value.scrollHeight;
+                    }
+                });
+            };
 
-      const nowTime = () => {
-        const d = new Date();
-        const hh = String(d.getHours()).padStart(2, "0");
-        const mm = String(d.getMinutes()).padStart(2, "0");
-        return `${hh}:${mm}`;
-      };
+            const nowTime = () => {
+                const d = new Date();
+                const hh = String(d.getHours()).padStart(2, "0");
+                const mm = String(d.getMinutes()).padStart(2, "0");
+                return `${hh}:${mm}`;
+            };
 
-      const send = async () => {
-        if (sending.value) return;
-        const q = input.value.trim();
-        if (!q) return;
+            const send = async () => {
+                if (sending.value) return;
+                const q = input.value.trim();
+                if (!q) return;
 
-        error.value = "";
-        input.value = "";
+                error.value = "";
+                input.value = "";
 
-        messages.push({
-          role: "user",
-          content: q,
-          time: nowTime()
-        });
-        scrollToBottom();
+                messages.push({
+                    role: "user",
+                    content: q,
+                    time: nowTime()
+                });
+                scrollToBottom();
 
-        sending.value = true;
+                sending.value = true;
 
-        try {
-          const resp = await fetch(backendBase + "/query", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json"
-            },
-            body: JSON.stringify({
-              question: q,
-              top_k: 5
-            })
-          });
+                try {
+                    const resp = await fetch(backendBase + "/query", {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json"
+                        },
+                        body: JSON.stringify({
+                            question: q,
+                            top_k: 5
+                        })
+                    });
 
-          if (!resp.ok) {
-            throw new Error("HTTP " + resp.status);
-          }
+                    if (!resp.ok) {
+                        throw new Error("HTTP " + resp.status);
+                    }
 
-          const data = await resp.json();
+                    const data = await resp.json();
 
-          messages.push({
-            role: "assistant",
-            content: data.answer || "(无回答)",
-            context: data.context_chunks || [],
-            showContext: false,
-            time: nowTime()
-          });
-          scrollToBottom();
-        } catch (e) {
-          console.error(e);
-          error.value = "请求失败，请检查后端是否已运行或 CORS 设置。";
-        } finally {
-          sending.value = false;
-        }
-      };
+                    messages.push({
+                        role: "assistant",
+                        content: data.answer || "(无回答)",
+                        context: data.context_chunks || [],
+                        showContext: false,
+                        time: nowTime()
+                    });
+                    scrollToBottom();
+                } catch (e) {
+                    console.error(e);
+                    error.value = "请求失败，请检查后端是否已运行或 CORS 设置。";
+                } finally {
+                    sending.value = false;
+                }
+            };
 
-      const clearHistory = () => {
-        messages.splice(0, messages.length);
-      };
+            const clearHistory = () => {
+                messages.splice(0, messages.length);
+            };
 
             const formatMarkdown = (text) => {
-        if (!text) return "";
-        try {
-          return marked.parse(text);
-        } catch (e) {
-          console.error("Markdown 渲染失败", e);
-          // 出错则退回基础转义
-          return String(text)
-            .replace(/&/g, "&amp;")
-            .replace(/</g, "&lt;")
-            .replace(/>/g, "&gt;")
-            .replace(/\n/g, "<br>");
+                if (!text) return "";
+                try {
+                    return marked.parse(text);
+                } catch (e) {
+                    console.error("Markdown 渲染失败", e);
+                    // 出错则退回基础转义
+                    return String(text)
+                        .replace(/&/g, "&amp;")
+                        .replace(/</g, "&lt;")
+                        .replace(/>/g, "&gt;")
+                        .replace(/\n/g, "<br>");
+                }
+            };
+
+            const getChunkText = (chunk) => {
+                if (!chunk) return "";
+                if (typeof chunk === "string") return chunk;
+                if (typeof chunk === "object" && chunk.text) return chunk.text;
+                return JSON.stringify(chunk);
+            };
+
+            const getChunkMeta = (chunk) => {
+                if (!chunk || typeof chunk !== "object") return null;
+                if (chunk.metadata && typeof chunk.metadata === "object") {
+                    return chunk.metadata;
+                }
+                // 兼容：如果后端直接把 meta 平铺在对象上
+                return chunk;
+            };
+
+            const snippet = (text) => {
+                if (!text) return "";
+                const t = text.replace(/\s+/g, " ").trim();
+                return t.length > 120 ? t.slice(0, 120) + "..." : t;
+            };
+
+            const resolveSourceLabel = (meta) => {
+                if (!meta) return "未知来源";
+
+                if (meta.folder_name || meta.file_path) {
+                    const name = meta.folder_name || "未命名文件夹";
+                    const path = meta.file_path || "";
+                    return `${name} · ${path}`;
+                }
+
+                if (meta.title || meta.doc_id) {
+                    return meta.title || meta.doc_id || "手动导入文档";
+                }
+
+                return "未标注来源";
+            };
+
+            const hasFileLink = (meta) => {
+                return meta && meta.folder_id && meta.file_path;
+            };
+
+            const buildFileUrl = (meta) => {
+                if (!hasFileLink(meta)) return "#";
+                const params = new URLSearchParams({
+                    folder_id: meta.folder_id,
+                    path: meta.file_path
+                });
+                return "/files/raw?" + params.toString();
+            };
+
+            onMounted(() => {
+                scrollToBottom();
+            });
+
+            return {
+                backendUrl,
+                messages,
+                input,
+                sending,
+                error,
+                send,
+                clearHistory,
+                formatMarkdown,
+                messageList,
+                // 新增给模板用的辅助方法
+                getChunkText,
+                getChunkMeta,
+                snippet,
+                resolveSourceLabel,
+                hasFileLink,
+                buildFileUrl
+            };
         }
-      };
-
-      const getChunkText = (chunk) => {
-        if (!chunk) return "";
-        if (typeof chunk === "string") return chunk;
-        if (typeof chunk === "object" && chunk.text) return chunk.text;
-        return JSON.stringify(chunk);
-      };
-
-      const getChunkMeta = (chunk) => {
-        if (!chunk || typeof chunk !== "object") return null;
-        if (chunk.metadata && typeof chunk.metadata === "object") {
-          return chunk.metadata;
-        }
-        // 兼容：如果后端直接把 meta 平铺在对象上
-        return chunk;
-      };
-
-      const snippet = (text) => {
-        if (!text) return "";
-        const t = text.replace(/\s+/g, " ").trim();
-        return t.length > 120 ? t.slice(0, 120) + "..." : t;
-      };
-
-      const resolveSourceLabel = (meta) => {
-        if (!meta) return "未知来源";
-
-        if (meta.folder_name || meta.file_path) {
-          const name = meta.folder_name || "未命名文件夹";
-          const path = meta.file_path || "";
-          return `${name} · ${path}`;
-        }
-
-        if (meta.title || meta.doc_id) {
-          return meta.title || meta.doc_id || "手动导入文档";
-        }
-
-        return "未标注来源";
-      };
-
-      const hasFileLink = (meta) => {
-        return meta && meta.folder_id && meta.file_path;
-      };
-
-      const buildFileUrl = (meta) => {
-        if (!hasFileLink(meta)) return "#";
-        const params = new URLSearchParams({
-          folder_id: meta.folder_id,
-          path: meta.file_path
-        });
-        return "/files/raw?" + params.toString();
-      };
-
-      onMounted(() => {
-        scrollToBottom();
-      });
-
-      return {
-        backendUrl,
-        messages,
-        input,
-        sending,
-        error,
-        send,
-        clearHistory,
-        formatMarkdown,
-        messageList,
-        // 新增给模板用的辅助方法
-        getChunkText,
-        getChunkMeta,
-        snippet,
-        resolveSourceLabel,
-        hasFileLink,
-        buildFileUrl
-      };
-    }
-  }).mount("#app");
+    }).mount("#app");
 </script>
 </body>
 </html>
