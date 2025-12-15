@@ -8,10 +8,10 @@
   <style>
       :root {
           color-scheme: dark light;
-          --bg: #0f172a;
-          --bg-light: #111827;
+          --bg: #020617;
+          --panel: #020617;
           --accent: #3b82f6;
-          --accent-soft: rgba(59, 130, 246, 0.12);
+          --accent-soft: rgba(59, 130, 246, 0.16);
           --border: rgba(148, 163, 184, 0.35);
           --text: #e5e7eb;
           --text-soft: #9ca3af;
@@ -26,7 +26,7 @@
       body {
           font-family: system-ui, -apple-system, BlinkMacSystemFont, "SF Pro Text",
           "Segoe UI", sans-serif;
-          background: radial-gradient(circle at top, #1d283a 0, #020617 50%, #000 100%);
+          background: radial-gradient(circle at top, #1f2937 0, #020617 50%, #000 100%);
           color: var(--text);
           min-height: 100vh;
           display: flex;
@@ -37,32 +37,28 @@
 
       #app {
           width: 100%;
-          max-width: 960px;
-          background: linear-gradient(
-                  135deg,
-                  rgba(148, 163, 184, 0.12),
-                  rgba(15, 23, 42, 0.96)
-          );
+          max-width: 1040px;
           border-radius: 24px;
-          border: 1px solid rgba(148, 163, 184, 0.35);
-          box-shadow: 0 24px 60px rgba(15, 23, 42, 0.95),
-          0 0 0 1px rgba(15, 23, 42, 0.6);
+          border: 1px solid var(--border);
+          background: radial-gradient(circle at top left, #111827, #020617);
+          box-shadow: 0 26px 70px rgba(15, 23, 42, 0.9),
+          0 0 0 1px rgba(15, 23, 42, 0.8);
           display: flex;
           flex-direction: column;
           overflow: hidden;
       }
 
       .header {
-          padding: 16px 20px;
-          border-bottom: 1px solid rgba(148, 163, 184, 0.35);
+          padding: 14px 18px;
+          border-bottom: 1px solid var(--border);
           display: flex;
           align-items: center;
           justify-content: space-between;
           backdrop-filter: blur(16px);
           background: linear-gradient(
                   to bottom,
-                  rgba(15, 23, 42, 0.92),
-                  rgba(15, 23, 42, 0.85)
+                  rgba(15, 23, 42, 0.95),
+                  rgba(15, 23, 42, 0.9)
           );
       }
 
@@ -76,15 +72,16 @@
           width: 30px;
           height: 30px;
           border-radius: 12px;
-          background: radial-gradient(circle at 30% 20%, #60a5fa, #1d4ed8);
-          box-shadow: 0 0 0 1px rgba(191, 219, 254, 0.35),
-          0 12px 24px rgba(15, 23, 42, 0.9);
+          background: radial-gradient(circle at 30% 15%, #bfdbfe, #60a5fa 40%, #1d4ed8);
+          border: 1px solid rgba(191, 219, 254, 0.6);
           display: flex;
           align-items: center;
           justify-content: center;
           font-size: 16px;
           font-weight: 700;
-          color: #e5f0ff;
+          color: #020617;
+          box-shadow: 0 12px 24px rgba(15, 23, 42, 0.9),
+          0 0 0 1px rgba(15, 23, 42, 0.7);
       }
 
       .title {
@@ -115,13 +112,12 @@
       }
 
       .badge {
+          padding: 3px 8px;
           border-radius: 999px;
-          border: 1px solid rgba(148, 163, 184, 0.55);
-          padding: 4px 10px;
-          font-size: 11px;
-          letter-spacing: 0.05em;
+          border: 1px solid var(--border);
+          font-size: 10px;
+          letter-spacing: 0.08em;
           text-transform: uppercase;
-          color: var(--text-soft);
       }
 
       .main {
@@ -536,6 +532,7 @@
       <span>Backend: {{ backendUrl }}</span>
       <span class="badge">MVP</span>
       <a href="/admin" class="nav-link">管理页面</a>
+      <a href="/vectors" class="nav-link">向量浏览</a>
     </div>
   </div>
 
