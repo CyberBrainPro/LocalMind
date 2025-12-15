@@ -1,6 +1,6 @@
 <template>
-  <div id="app">
-    <div class="header">
+  <div class="app-shell">
+    <div class="shell-header">
       <div class="brand">
         <div class="logo">LM</div>
         <div>
@@ -17,92 +17,105 @@
       </div>
     </div>
 
-    <div class="main">
-      <div class="messages" ref="messageList">
-        <div v-if="messages.length === 0" class="empty-tip">
-          👋 还没有对话，先问一个与你本地知识库相关的问题试试吧。
-        </div>
+    <div class="shell-body">
+      <div class="chat-panel">
+        <div class="messages" ref="messageList">
+          <div v-if="messages.length === 0" class="empty-tip">
+            👋 还没有对话，先问一个与你本地知识库相关的问题试试吧。
+          </div>
 
-        <div
-          v-for="(msg, idx) in messages"
-          :key="idx"
-          class="msg-row"
-          :class="msg.role"
-        >
-          <div v-if="msg.role === 'assistant'" class="msg-avatar assistant">AI</div>
-          <div v-if="msg.role === 'user'" class="msg-avatar user">Me</div>
+          <div
+            v-for="(msg, idx) in messages"
+            :key="idx"
+            class="msg-row"
+            :class="msg.role"
+          >
+            <div v-if="msg.role === 'assistant'" class="msg-avatar assistant">AI</div>
+            <div v-if="msg.role === 'user'" class="msg-avatar user">Me</div>
 
-          <div class="bubble" :class="msg.role">
-            <div class="markdown-body" v-html="formatMarkdown(msg.content)"></div>
+            <div class="bubble" :class="msg.role">
+              <div class="markdown-body" v-html="formatMarkdown(msg.content)"></div>
 
-            <div class="bubble-meta">
-              <span>{{ msg.role === "user" ? "提问" : "回答" }}</span>
-              <span v-if="msg.time">{{ msg.time }}</span>
-              <span
-                v-if="msg.role === 'assistant' && msg.context?.length"
-                class="context-toggle"
-                @click="msg.showContext = !msg.showContext"
+              <div class="bubble-meta">
+                <span>{{ msg.role === "user" ? "提问" : "回答" }}</span>
+                <span v-if="msg.time">{{ msg.time }}</span>
+                <span
+                  v-if="msg.role === 'assistant' && msg.context?.length"
+                  class="context-toggle"
+                  @click="msg.showContext = !msg.showContext"
+                >
+                  {{ msg.showContext ? "收起引用来源" : "查看引用来源" }}
+                </span>
+              </div>
+
+              <div
+                v-if="msg.role === 'assistant' && msg.context?.length && msg.showContext"
+                class="references-panel"
               >
-                {{ msg.showContext ? "收起引用来源" : "查看引用来源" }}
-              </span>
-            </div>
-
-            <div
-              v-if="msg.role === 'assistant' && msg.context?.length && msg.showContext"
-              class="references-panel"
-            >
-              <div class="ref-title">引用来源</div>
-              <div class="ref-list">
-                <div class="ref-item" v-for="(chunk, i) in msg.context" :key="i">
-                  <div class="ref-header">
-                    <span class="ref-index">[{{ i + 1 }}]</span>
-                    <span class="ref-source">
-                      {{ resolveSourceLabel(getChunkMeta(chunk)) }}
-                    </span>
-                    <a
-                      v-if="hasFileLink(getChunkMeta(chunk))"
-                      :href="buildFileUrl(getChunkMeta(chunk))"
-                      target="_blank"
-                      class="ref-link"
-                    >
-                      预览 / 下载原文
-                    </a>
-                  </div>
-                  <div class="ref-snippet">
-                    {{ snippet(getChunkText(chunk)) }}
+                <div class="ref-title">引用来源</div>
+                <div class="ref-list">
+                  <div class="ref-item" v-for="(chunk, i) in msg.context" :key="i">
+                    <div class="ref-header">
+                      <span class="ref-index">[{{ i + 1 }}]</span>
+                      <span class="ref-source">
+                        {{ resolveSourceLabel(getChunkMeta(chunk)) }}
+                      </span>
+                      <a
+                        v-if="hasFileLink(getChunkMeta(chunk))"
+                        :href="buildFileUrl(getChunkMeta(chunk))"
+                        target="_blank"
+                        class="ref-link"
+                      >
+                        预览 / 下载原文
+                      </a>
+                    </div>
+                    <div class="ref-snippet">
+                      {{ snippet(getChunkText(chunk)) }}
+                    </div>
                   </div>
                 </div>
               </div>
             </div>
           </div>
         </div>
-      </div>
 
-      <div class="input-bar">
-        <div class="input-row">
-          <textarea
-            v-model="input"
-            :rows="1"
-            @keydown.enter.exact.prevent="send"
-            @keydown.shift.enter.stop
-            placeholder="输入你的问题，Enter 发送，Shift+Enter 换行…"
-          ></textarea>
-          <button class="btn" @click="send" :disabled="sending || !input.trim()">
-            <span v-if="!sending">发送</span>
-            <span v-else>思考中…</span>
-          </button>
-        </div>
-        <div class="actions-row">
-          <div class="action-buttons">
-            <button class="btn btn-secondary" @click="clearHistory" :disabled="!messages.length">
-              清空对话
+        <div class="composer">
+          <div class="input-row">
+            <textarea
+              v-model="input"
+              :rows="1"
+              @keydown.enter.exact.prevent="send"
+              @keydown.shift.enter.stop
+              placeholder="输入你的问题，Enter 发送，Shift+Enter 换行…"
+            ></textarea>
+            <button class="btn" @click="send" :disabled="sending || !input.trim()">
+              <span v-if="!sending">发送</span>
+              <span v-else>思考中…</span>
             </button>
           </div>
-          <div>
-            <span v-if="error" class="error">⚠️ {{ error }}</span>
-            <span v-else>提示：请先在后端导入文档再进行提问。</span>
+          <div class="actions-row">
+            <div class="action-buttons">
+              <button class="btn btn-secondary" @click="clearHistory" :disabled="!messages.length">
+                清空对话
+              </button>
+            </div>
+            <div>
+              <span v-if="error" class="error">⚠️ {{ error }}</span>
+              <span v-else>提示：请先在后端导入文档再进行提问。</span>
+            </div>
           </div>
         </div>
+      </div>
+    </div>
+
+    <div class="shell-footer">
+      <div class="footer-left">
+        <span>LocalMind · 对话控制台</span>
+        <span class="footer-status">与本地知识库进行实时问答</span>
+      </div>
+      <div class="footer-links">
+        <a href="/admin">Admin</a>
+        <a href="/vectors">Vectors</a>
       </div>
     </div>
   </div>
@@ -263,11 +276,15 @@ onMounted(() => {
   font-family: system-ui, -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", sans-serif;
   background: radial-gradient(circle at top, #1f2937 0, #020617 50%, #000 100%);
   color: var(--text);
+  margin: 0;
   min-height: 100vh;
-  display: flex;
-  align-items: stretch;
-  justify-content: center;
-  padding: 16px;
+  overflow: hidden;
+}
+
+:global(*) {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
 }
 
 :global(:root) {
@@ -279,21 +296,29 @@ onMounted(() => {
   --border: rgba(148, 163, 184, 0.35);
   --text: #e5e7eb;
   --text-soft: #9ca3af;
+  --header-height: 76px;
+  --footer-height: 64px;
 }
 
-#app {
+.app-shell {
   width: 100%;
-  max-width: 1040px;
-  border-radius: 24px;
+  min-height: 100vh;
+  position: relative;
+  border-radius: 0;
   border: 1px solid var(--border);
   background: radial-gradient(circle at top left, #111827, #020617);
   box-shadow: 0 26px 70px rgba(15, 23, 42, 0.9), 0 0 0 1px rgba(15, 23, 42, 0.8);
-  display: flex;
-  flex-direction: column;
+  padding-top: var(--header-height);
+  padding-bottom: var(--footer-height);
   overflow: hidden;
 }
 
-.header {
+.shell-header {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: var(--header-height);
   padding: 14px 18px;
   border-bottom: 1px solid var(--border);
   display: flex;
@@ -378,12 +403,53 @@ onMounted(() => {
   color: #e0f2fe;
 }
 
-.main {
-  flex: 1;
+.shell-body {
+  position: absolute;
+  top: var(--header-height);
+  bottom: var(--footer-height);
+  left: 0;
+  right: 0;
+  padding: 16px 24px;
+  overflow: hidden;
+  min-height: 0;
+}
+
+.chat-panel {
+  width: 100%;
+  height: 100%;
+  border-radius: 20px;
+  border: 1px solid var(--border);
+  background: radial-gradient(circle at top, #0f172a 0, #020617 60%, #01010a 100%);
+  box-shadow: inset 0 0 30px rgba(15, 23, 42, 0.5);
   display: flex;
   flex-direction: column;
-  padding: 12px 16px 10px;
-  gap: 8px;
+  overflow: hidden;
+}
+
+.composer {
+  border-top: 1px solid rgba(148, 163, 184, 0.25);
+  padding: 14px 18px;
+  background: rgba(2, 6, 23, 0.6);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  flex-shrink: 0;
+}
+
+.shell-footer {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 64px;
+  padding: 0 18px;
+  border-top: 1px solid var(--border);
+  background: rgba(2, 6, 23, 0.92);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  color: var(--text-soft);
+  font-size: 12px;
 }
 
 .messages {
@@ -525,32 +591,42 @@ onMounted(() => {
   word-break: break-word;
 }
 
-.input-bar {
-  border-top: 1px solid rgba(148, 163, 184, 0.35);
-  padding-top: 10px;
-}
-
 .input-row {
   display: flex;
-  gap: 10px;
+  gap: 12px;
+  align-items: flex-end;
 }
 
 textarea {
   flex: 1;
-  border-radius: 12px;
+  border-radius: 14px;
   border: 1px solid var(--border);
   background: rgba(15, 23, 42, 0.95);
   color: var(--text);
   padding: 10px 12px;
   resize: none;
   font-size: 14px;
-  min-height: 60px;
+  min-height: 80px;
 }
 
 textarea:focus {
   outline: none;
   border-color: var(--accent);
   box-shadow: 0 0 0 1px rgba(59, 130, 246, 0.6);
+}
+
+.actions-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 12px;
+  color: var(--text-soft);
+  gap: 8px;
+}
+
+.action-buttons {
+  display: flex;
+  gap: 8px;
 }
 
 .btn {
@@ -576,14 +652,26 @@ textarea:focus {
   color: var(--text-soft);
 }
 
-.actions-row {
-  margin-top: 8px;
+.footer-left {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.footer-links {
+  display: flex;
+  gap: 12px;
+}
+
+.footer-links a {
+  color: var(--text);
+  text-decoration: none;
   font-size: 12px;
-  color: var(--text-soft);
-  gap: 8px;
+  border-bottom: 1px solid transparent;
+}
+
+.footer-links a:hover {
+  border-bottom-color: var(--text);
 }
 
 .error {
@@ -591,7 +679,7 @@ textarea:focus {
 }
 
 @media (max-width: 720px) {
-  #app {
+  .app-shell {
     border-radius: 14px;
   }
 

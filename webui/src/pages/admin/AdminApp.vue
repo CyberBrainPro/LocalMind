@@ -1,6 +1,6 @@
 <template>
-  <div id="app">
-    <div class="header">
+  <div class="app-shell">
+    <div class="shell-header">
       <div class="brand">
         <div class="logo">LM</div>
         <div>
@@ -17,110 +17,123 @@
       </div>
     </div>
 
-    <div class="main">
-      <div class="panel">
-        <div class="panel-header">
-          <div class="panel-title">监控文件夹配置</div>
-          <button class="btn btn-secondary" @click="loadFolders">刷新</button>
-        </div>
-        <div class="panel-desc">
-          为 1-N 个服务器 / 目录建立配置，点击“扫描”后自动切分并向量化其中的文本文件。
-        </div>
+    <div class="shell-body">
+      <div class="panel-grid">
+        <div class="panel">
+          <div class="panel-header">
+            <div class="panel-title">监控文件夹配置</div>
+            <button class="btn btn-secondary" @click="loadFolders">刷新</button>
+          </div>
+          <div class="panel-desc">
+            为 1-N 个服务器 / 目录建立配置，点击“扫描”后自动切分并向量化其中的文本文件。
+          </div>
 
-        <div class="input-row">
-          <div class="input-col">
-            <label>名称</label>
-            <input type="text" v-model="newFolder.name" placeholder="如：本机-项目文档" />
-          </div>
-          <div class="input-col">
-            <label>目录路径</label>
-            <input type="text" v-model="newFolder.path" placeholder="如：/Users/xxx/Documents/project-notes" />
-          </div>
-          <div style="display: flex; align-items: flex-end">
-            <button class="btn btn-primary" @click="createFolder" :disabled="creatingFolder">
-              <span v-if="!creatingFolder">添加文件夹</span>
-              <span v-else>添加中...</span>
-            </button>
-          </div>
-        </div>
-
-        <div class="search-row">
-          <label style="font-size: 11px; color: var(--text-soft)">搜索：</label>
-          <input type="text" v-model="folderSearch" placeholder="按名称或路径过滤" />
-          <button class="btn btn-secondary" @click="loadFolders">重载</button>
-        </div>
-
-        <div class="folders-list">
-          <div v-if="folders.length === 0" style="font-size: 12px; color: var(--text-soft); padding: 4px 2px">
-            还没有配置任何监控文件夹，请先在上方添加。
-          </div>
-          <div v-for="f in filteredFolders" :key="f.id" class="folder-row">
-            <div class="folder-main">
-              <div class="folder-name">{{ f.name }}</div>
-              <div class="folder-path">{{ f.path }}</div>
-              <div class="folder-meta">
-                <span>
-                  最近扫描：
-                  <template v-if="f.last_scan_at">
-                    {{ formatTime(f.last_scan_at) }}（{{ f.last_scan_status || "未知状态" }}）
-                  </template>
-                  <template v-else>尚未扫描</template>
-                </span>
-              </div>
+          <div class="input-row">
+            <div class="input-col">
+              <label>名称</label>
+              <input type="text" v-model="newFolder.name" placeholder="如：本机-项目文档" />
             </div>
-            <div>
-              <div class="progress-box" v-if="f.currentJob">
-                <div>
-                  状态：<strong>{{ jobStatusLabel(f.currentJob.status) }}</strong>
-                  （{{ f.currentJob.processed_files }} / {{ f.currentJob.total_files }} 文件）
-                </div>
-                <div class="progress-bar">
-                  <div class="progress-inner" :style="{ width: progressPercent(f.currentJob) + '%' }"></div>
-                </div>
-              </div>
+            <div class="input-col">
+              <label>目录路径</label>
+              <input type="text" v-model="newFolder.path" placeholder="如：/Users/xxx/Documents/project-notes" />
             </div>
-            <div class="folder-actions">
-              <button class="btn btn-primary" @click="startScan(f)" :disabled="f.scanning">
-                <span v-if="!f.scanning">扫描并向量化</span>
-                <span v-else>扫描中...</span>
+            <div style="display: flex; align-items: flex-end">
+              <button class="btn btn-primary" @click="createFolder" :disabled="creatingFolder">
+                <span v-if="!creatingFolder">添加文件夹</span>
+                <span v-else>添加中...</span>
               </button>
-              <button class="btn btn-secondary" @click="openInChat(f)">在 Chat 中提问</button>
-              <button class="btn btn-danger" @click="deleteFolder(f)">删除配置</button>
             </div>
           </div>
+
+          <div class="search-row">
+            <label style="font-size: 11px; color: var(--text-soft)">搜索：</label>
+            <input type="text" v-model="folderSearch" placeholder="按名称或路径过滤" />
+            <button class="btn btn-secondary" @click="loadFolders">重载</button>
+          </div>
+
+          <div class="folders-list">
+            <div v-if="folders.length === 0" style="font-size: 12px; color: var(--text-soft); padding: 4px 2px">
+              还没有配置任何监控文件夹，请先在上方添加。
+            </div>
+            <div v-for="f in filteredFolders" :key="f.id" class="folder-row">
+              <div class="folder-main">
+                <div class="folder-name">{{ f.name }}</div>
+                <div class="folder-path">{{ f.path }}</div>
+                <div class="folder-meta">
+                  <span>
+                    最近扫描：
+                    <template v-if="f.last_scan_at">
+                      {{ formatTime(f.last_scan_at) }}（{{ f.last_scan_status || "未知状态" }}）
+                    </template>
+                    <template v-else>尚未扫描</template>
+                  </span>
+                </div>
+              </div>
+              <div>
+                <div class="progress-box" v-if="f.currentJob">
+                  <div>
+                    状态：<strong>{{ jobStatusLabel(f.currentJob.status) }}</strong>
+                    （{{ f.currentJob.processed_files }} / {{ f.currentJob.total_files }} 文件）
+                  </div>
+                  <div class="progress-bar">
+                    <div class="progress-inner" :style="{ width: progressPercent(f.currentJob) + '%' }"></div>
+                  </div>
+                </div>
+              </div>
+              <div class="folder-actions">
+                <button class="btn btn-primary" @click="startScan(f)" :disabled="f.scanning">
+                  <span v-if="!f.scanning">扫描并向量化</span>
+                  <span v-else>扫描中...</span>
+                </button>
+                <button class="btn btn-secondary" @click="openInChat(f)">在 Chat 中提问</button>
+                <button class="btn btn-danger" @click="deleteFolder(f)">删除配置</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-header">
+            <div class="panel-title">扫描任务 / 进度</div>
+            <button class="btn btn-secondary" @click="loadJobs">刷新</button>
+          </div>
+          <div class="panel-desc">查看当前和历史扫描任务的进度，便于跟踪批量向量化过程。</div>
+
+          <div class="jobs-list">
+            <div v-if="jobs.length === 0" style="font-size: 12px; color: var(--text-soft)">
+              暂无扫描任务。你可以在左侧对某个文件夹发起一次扫描。
+            </div>
+            <div v-for="job in jobs" :key="job.id" class="job-row">
+              <div class="job-header">
+                <div>任务 {{ job.id.slice(0, 8) }}...</div>
+                <div class="job-status" :class="job.status">
+                  {{ jobStatusLabel(job.status) }}
+                </div>
+              </div>
+              <div class="job-meta">
+                <span>文件数：{{ job.processed_files }} / {{ job.total_files }}</span>
+                <span>开始：{{ formatTime(job.started_at) }}</span>
+              </div>
+              <div class="job-meta" v-if="job.finished_at">
+                <span>结束：{{ formatTime(job.finished_at) }}</span>
+                <span v-if="job.error_message" style="color: #fecaca">{{ job.error_message }}</span>
+              </div>
+            </div>
+          </div>
+
+          <div v-if="error" class="error">⚠️ {{ error }}</div>
         </div>
       </div>
+    </div>
 
-      <div class="panel">
-        <div class="panel-header">
-          <div class="panel-title">扫描任务 / 进度</div>
-          <button class="btn btn-secondary" @click="loadJobs">刷新</button>
-        </div>
-        <div class="panel-desc">查看当前和历史扫描任务的进度，便于跟踪批量向量化过程。</div>
-
-        <div class="jobs-list">
-          <div v-if="jobs.length === 0" style="font-size: 12px; color: var(--text-soft)">
-            暂无扫描任务。你可以在左侧对某个文件夹发起一次扫描。
-          </div>
-          <div v-for="job in jobs" :key="job.id" class="job-row">
-            <div class="job-header">
-              <div>任务 {{ job.id.slice(0, 8) }}...</div>
-              <div class="job-status" :class="job.status">
-                {{ jobStatusLabel(job.status) }}
-              </div>
-            </div>
-            <div class="job-meta">
-              <span>文件数：{{ job.processed_files }} / {{ job.total_files }}</span>
-              <span>开始：{{ formatTime(job.started_at) }}</span>
-            </div>
-            <div class="job-meta" v-if="job.finished_at">
-              <span>结束：{{ formatTime(job.finished_at) }}</span>
-              <span v-if="job.error_message" style="color: #fecaca">{{ job.error_message }}</span>
-            </div>
-          </div>
-        </div>
-
-        <div v-if="error" class="error">⚠️ {{ error }}</div>
+    <div class="shell-footer">
+      <div class="footer-left">
+        <span>LocalMind · 管理控制台</span>
+        <span class="footer-status">实时监控文件夹及扫描任务</span>
+      </div>
+      <div class="footer-links">
+        <a href="/chat">Chat</a>
+        <a href="/vectors">Vectors</a>
       </div>
     </div>
   </div>
@@ -337,6 +350,12 @@ onMounted(() => {
   --text: #e5e7eb;
   --text-soft: #9ca3af;
   --danger: #f97373;
+  --header-height: 76px;
+  --footer-height: 56px;
+}
+
+:global(html) {
+  height: 100%;
 }
 
 :global(*) {
@@ -349,25 +368,30 @@ onMounted(() => {
   font-family: system-ui, -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", sans-serif;
   background: radial-gradient(circle at top, #1f2937 0, #020617 50%, #000 100%);
   color: var(--text);
+  margin: 0;
   min-height: 100vh;
-  display: flex;
-  justify-content: center;
-  padding: 16px;
-}
-
-#app {
-  width: 100%;
-  max-width: 1040px;
-  border-radius: 24px;
-  border: 1px solid var(--border);
-  background: radial-gradient(circle at top left, #111827, #020617);
-  box-shadow: 0 26px 70px rgba(15, 23, 42, 0.9), 0 0 0 1px rgba(15, 23, 42, 0.8);
-  display: flex;
-  flex-direction: column;
   overflow: hidden;
 }
 
-.header {
+.app-shell {
+  width: 100%;
+  min-height: 100vh;
+  position: relative;
+  border-radius: 0;
+  border: 1px solid var(--border);
+  background: radial-gradient(circle at top left, #111827, #020617);
+  box-shadow: 0 26px 70px rgba(15, 23, 42, 0.9), 0 0 0 1px rgba(15, 23, 42, 0.8);
+  padding-top: var(--header-height);
+  padding-bottom: var(--footer-height);
+  overflow: hidden;
+}
+
+.shell-header {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: var(--header-height);
   padding: 14px 18px;
   border-bottom: 1px solid var(--border);
   display: flex;
@@ -452,12 +476,24 @@ onMounted(() => {
   color: #e0f2fe;
 }
 
-.main {
-  flex: 1;
+.shell-body {
+  position: absolute;
+  top: var(--header-height);
+  bottom: var(--footer-height);
+  left: 0;
+  right: 0;
+  padding: 16px 24px;
+  overflow: hidden;
+  min-height: 0;
+}
+
+.panel-grid {
+  width: 100%;
+  height: 100%;
+  min-height: 0;
   display: grid;
   grid-template-columns: minmax(0, 2.2fr) minmax(0, 1.6fr);
-  gap: 10px;
-  padding: 12px 14px 14px;
+  gap: 14px;
 }
 
 .panel {
@@ -467,6 +503,46 @@ onMounted(() => {
   padding: 12px 12px 10px;
   display: flex;
   flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.shell-footer {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: var(--footer-height);
+  padding: 0 18px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: rgba(2, 6, 23, 0.92);
+  color: var(--text-soft);
+  font-size: 12px;
+}
+
+.footer-left {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.footer-links {
+  display: flex;
+  gap: 12px;
+}
+
+.footer-links a {
+  color: var(--text);
+  text-decoration: none;
+  font-size: 12px;
+  border-bottom: 1px solid transparent;
+}
+
+.footer-links a:hover {
+  border-bottom-color: var(--text);
 }
 
 .panel-header {
@@ -568,7 +644,7 @@ input[type="text"]:focus {
   background: rgba(15, 23, 42, 0.95);
   padding: 6px 6px 4px;
   overflow-y: auto;
-  max-height: 320px;
+  min-height: 0;
 }
 
 .folder-row {
@@ -665,6 +741,7 @@ input[type="text"]:focus {
   background: rgba(15, 23, 42, 0.95);
   font-size: 12px;
   overflow-y: auto;
+  min-height: 0;
 }
 
 .job-row {
@@ -719,21 +796,13 @@ input[type="text"]:focus {
   margin-top: 2px;
 }
 
-@media (max-width: 840px) {
-  #app {
-    border-radius: 18px;
-  }
-
-  .main {
+@media (max-width: 960px) {
+  .panel-grid {
     grid-template-columns: minmax(0, 1fr);
   }
 }
 
 @media (max-width: 640px) {
-  :global(body) {
-    padding: 10px;
-  }
-
   .folder-row {
     grid-template-columns: minmax(0, 1fr);
     align-items: flex-start;

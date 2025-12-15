@@ -1,6 +1,6 @@
 <template>
-  <div id="app">
-    <div class="header">
+  <div class="app-shell">
+    <div class="shell-header">
       <div class="brand">
         <div class="logo">LM</div>
         <div>
@@ -17,7 +17,7 @@
       </div>
     </div>
 
-    <div class="vector-main">
+    <div class="shell-body">
       <div class="panel">
         <div class="panel-header">
           <div>
@@ -34,32 +34,57 @@
           </label>
         </div>
 
-        <div class="table-wrapper">
-          <table>
-            <thead>
-              <tr>
-                <th style="width: 20%">ID</th>
-                <th style="width: 45%">Document</th>
-                <th style="width: 35%">Metadata</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-if="!items.length">
-                <td colspan="3">{{ tableMessage }}</td>
-              </tr>
-              <tr v-for="item in items" :key="item.id">
-                <td data-label="ID">{{ item.id }}</td>
-                <td data-label="Document" class="doc">{{ sanitizeDocument(item.document) }}</td>
-                <td data-label="Metadata" class="metadata">{{ renderMetadata(item.metadata) }}</td>
-              </tr>
-            </tbody>
-          </table>
+        <div class="list-wrapper">
+          <div v-if="!items.length" class="empty-tip">{{ tableMessage }}</div>
+          <div v-else class="vector-list">
+            <div v-for="item in items" :key="item.id" class="vector-card">
+              <div class="card-header">
+                <div class="card-id" title="向量 ID">{{ item.id }}</div>
+                <button class="btn btn-light" @click="openDetail(item)">查看详情</button>
+              </div>
+              <div class="card-snippet">{{ sanitizeDocument(item.document) }}</div>
+              <div class="card-meta">
+                {{ metadataSummary(item.metadata) }}
+              </div>
+            </div>
+          </div>
         </div>
 
         <div class="pagination">
           <button class="btn" @click="prevPage" :disabled="!canPrev">上一页</button>
           <span class="page-info" v-if="items.length">{{ pageInfo }}</span>
           <button class="btn" @click="nextPage" :disabled="!canNext">下一页</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="shell-footer">
+      <div class="footer-left">
+        <span>LocalMind · 向量数据浏览</span>
+        <span>仅列表区域滚动，便于稳定查看</span>
+      </div>
+      <div class="footer-links">
+        <a href="/admin">Admin</a>
+        <a href="/chat">Chat</a>
+      </div>
+    </div>
+
+    <div v-if="detailItem" class="detail-overlay">
+      <div class="detail-modal">
+        <button class="detail-close" @click="closeDetail">&times;</button>
+        <div class="detail-content">
+          <div class="detail-section">
+            <div class="detail-label">ID</div>
+            <div class="detail-value">{{ detailItem.id }}</div>
+          </div>
+          <div class="detail-section">
+            <div class="detail-label">Document</div>
+            <div class="detail-value detail-text">{{ detailItem.document }}</div>
+          </div>
+          <div class="detail-section">
+            <div class="detail-label">Metadata</div>
+            <pre class="detail-pre">{{ renderMetadata(detailItem.metadata) }}</pre>
+          </div>
         </div>
       </div>
     </div>
@@ -76,9 +101,14 @@ const offset = ref(0);
 const loading = ref(false);
 const summaryText = ref("加载中...");
 const tableMessage = ref("加载中...");
+const detailItem = ref(null);
+const pendingFetch = ref(false);
 
 const fetchVectors = async () => {
-  if (loading.value) return;
+  if (loading.value) {
+    pendingFetch.value = true;
+    return;
+  }
   loading.value = true;
   tableMessage.value = "加载中...";
   items.value = [];
@@ -112,6 +142,10 @@ const fetchVectors = async () => {
     summaryText.value = "无法加载向量数据。";
   } finally {
     loading.value = false;
+    if (pendingFetch.value) {
+      pendingFetch.value = false;
+      fetchVectors();
+    }
   }
 };
 
@@ -136,7 +170,7 @@ const nextPage = () => {
 const sanitizeDocument = (doc) => {
   if (!doc) return "";
   const str = String(doc);
-  return str.length > 400 ? `${str.slice(0, 400)}...` : str;
+  return str.length > 200 ? `${str.slice(0, 200)}...` : str;
 };
 
 const renderMetadata = (meta) => {
@@ -146,6 +180,26 @@ const renderMetadata = (meta) => {
   } catch (e) {
     return "Invalid metadata";
   }
+};
+
+const metadataSummary = (meta) => {
+  if (!meta || typeof meta !== "object") return "无元数据";
+  if (meta.file_name || meta.folder_name) {
+    const folder = meta.folder_name || "未知文件夹";
+    const file = meta.file_name || meta.doc_id || "未知文件";
+    return `${folder} · ${file}`;
+  }
+  const entries = Object.entries(meta).slice(0, 3);
+  if (!entries.length) return "无元数据";
+  return entries.map(([key, value]) => `${key}: ${value}`).join(" · ");
+};
+
+const openDetail = (item) => {
+  detailItem.value = item;
+};
+
+const closeDetail = () => {
+  detailItem.value = null;
 };
 
 const canPrev = computed(() => offset.value > 0);
@@ -161,9 +215,8 @@ watch(
   () => limit.value,
   (newVal, oldVal) => {
     if (newVal === oldVal) return;
-    if (!loading.value) {
-      offset.value = 0;
-    }
+    offset.value = 0;
+    fetchVectors();
   }
 );
 
@@ -182,6 +235,12 @@ onMounted(() => {
   --accent-soft: rgba(59, 130, 246, 0.16);
   --text: #e5e7eb;
   --text-soft: #94a3b8;
+  --header-height: 76px;
+  --footer-height: 56px;
+}
+
+:global(html) {
+  height: 100%;
 }
 
 :global(*) {
@@ -194,25 +253,30 @@ onMounted(() => {
   font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   background: radial-gradient(circle at top, #1f2937 0, #020617 50%, #000 100%);
   color: var(--text);
+  margin: 0;
   min-height: 100vh;
-  display: flex;
-  justify-content: center;
-  padding: 16px;
-}
-
-#app {
-  width: 100%;
-  max-width: 1040px;
-  border-radius: 24px;
-  border: 1px solid var(--border);
-  background: radial-gradient(circle at top left, #111827, #020617);
-  box-shadow: 0 26px 70px rgba(15, 23, 42, 0.9), 0 0 0 1px rgba(15, 23, 42, 0.8);
-  display: flex;
-  flex-direction: column;
   overflow: hidden;
 }
 
-.header {
+.app-shell {
+  width: 100%;
+  min-height: 100vh;
+  position: relative;
+  border-radius: 0;
+  border: 1px solid var(--border);
+  background: radial-gradient(circle at top left, #111827, #020617);
+  box-shadow: 0 26px 70px rgba(15, 23, 42, 0.9), 0 0 0 1px rgba(15, 23, 42, 0.8);
+  padding-top: var(--header-height);
+  padding-bottom: var(--footer-height);
+  overflow: hidden;
+}
+
+.shell-header {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: var(--header-height);
   padding: 14px 18px;
   border-bottom: 1px solid var(--border);
   display: flex;
@@ -297,11 +361,53 @@ onMounted(() => {
   color: #e0f2fe;
 }
 
-.vector-main {
-  flex: 1;
+.shell-body {
+  position: absolute;
+  top: var(--header-height);
+  bottom: var(--footer-height);
+  left: 0;
+  right: 0;
+  padding: 16px 24px;
+  overflow: hidden;
+  min-height: 0;
+}
+
+.shell-footer {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: var(--footer-height);
+  padding: 0 18px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: rgba(2, 6, 23, 0.92);
+  color: var(--text-soft);
+  font-size: 12px;
+}
+
+.footer-left {
   display: flex;
   flex-direction: column;
-  padding: 12px 14px 14px;
+  gap: 2px;
+}
+
+.footer-links {
+  display: flex;
+  gap: 12px;
+}
+
+.footer-links a {
+  color: var(--text);
+  text-decoration: none;
+  font-size: 12px;
+  border-bottom: 1px solid transparent;
+}
+
+.footer-links a:hover {
+  border-bottom-color: var(--text);
 }
 
 .panel {
@@ -312,6 +418,9 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   gap: 16px;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .panel-header {
@@ -382,44 +491,70 @@ onMounted(() => {
   cursor: not-allowed;
 }
 
-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 0.9rem;
+.btn-light {
+  background: rgba(15, 23, 42, 0.6);
+  color: var(--text);
+  border: 1px solid var(--border);
+}
+
+.list-wrapper {
+  flex: 1;
+  border-radius: 16px;
+  border: 1px solid rgba(31, 41, 55, 0.9);
   background: rgba(2, 6, 23, 0.6);
-  border-radius: 18px;
+  padding: 10px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-height: 0;
+}
+
+.vector-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.vector-card {
+  border-radius: 14px;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  padding: 12px;
+  background: rgba(15, 23, 42, 0.9);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.card-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+}
+
+.card-id {
+  font-size: 13px;
+  color: var(--text-soft);
+  flex: 1;
   overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-thead {
-  background: rgba(56, 189, 248, 0.08);
+.card-snippet {
+  font-size: 14px;
+  color: var(--text);
+  line-height: 1.5;
 }
 
-th,
-td {
-  padding: 12px 14px;
-  border-bottom: 1px solid rgba(148, 163, 184, 0.2);
-  text-align: left;
-  vertical-align: top;
-}
-
-tbody tr:last-child td {
-  border-bottom: none;
-}
-
-.doc {
-  white-space: pre-wrap;
-  word-break: break-word;
-}
-
-.metadata {
-  font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
-  white-space: pre-wrap;
-  font-size: 0.8rem;
+.card-meta {
+  font-size: 12px;
   color: var(--text-soft);
 }
 
 .pagination {
+  color: var(--text-soft);
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -428,40 +563,90 @@ tbody tr:last-child td {
 }
 
 .page-info {
-  color: var(--text-soft);
   font-size: 0.9rem;
 }
 
-@media (max-width: 768px) {
-  table,
-  thead,
-  tbody,
-  th,
-  td,
-  tr {
-    display: block;
-  }
+.empty-tip {
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-soft);
+  font-size: 0.95rem;
+}
 
-  thead {
-    display: none;
-  }
+.detail-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.65);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
 
-  tr {
-    border-bottom: 1px solid rgba(148, 163, 184, 0.2);
-    padding: 12px 0;
-  }
+.detail-modal {
+  width: min(720px, 100%);
+  max-height: 90vh;
+  background: radial-gradient(circle at top left, #111827, #020617);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 24px;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
 
-  td {
-    border: none;
-    padding: 6px 0;
-  }
+.detail-close {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  background: transparent;
+  border: none;
+  color: var(--text-soft);
+  font-size: 22px;
+  cursor: pointer;
+}
 
-  td::before {
-    content: attr(data-label);
-    display: block;
-    font-weight: 600;
-    margin-bottom: 4px;
-    color: var(--text-soft);
-  }
+.detail-content {
+  margin-top: 10px;
+  overflow-y: auto;
+  padding-right: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.detail-section {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.detail-label {
+  font-size: 12px;
+  color: var(--text-soft);
+  letter-spacing: 0.04em;
+}
+
+.detail-value {
+  font-size: 13px;
+  color: var(--text);
+}
+
+.detail-text {
+  white-space: pre-wrap;
+  line-height: 1.5;
+}
+
+.detail-pre {
+  background: rgba(15, 23, 42, 0.9);
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  border-radius: 12px;
+  padding: 12px;
+  color: var(--text);
+  font-size: 12px;
+  overflow-x: auto;
 }
 </style>
