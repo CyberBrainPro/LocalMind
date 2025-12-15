@@ -296,8 +296,8 @@ onMounted(() => {
   --border: rgba(148, 163, 184, 0.35);
   --text: #e5e7eb;
   --text-soft: #9ca3af;
-  --header-height: 76px;
-  --footer-height: 64px;
+  --header-height: 56px;
+  --footer-height: 56px;
 }
 
 .app-shell {
@@ -441,7 +441,7 @@ onMounted(() => {
   bottom: 0;
   left: 0;
   right: 0;
-  height: 64px;
+  height: var(--footer-height);
   padding: 0 18px;
   border-top: 1px solid var(--border);
   background: rgba(2, 6, 23, 0.92);

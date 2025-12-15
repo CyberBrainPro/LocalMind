@@ -235,7 +235,7 @@ onMounted(() => {
   --accent-soft: rgba(59, 130, 246, 0.16);
   --text: #e5e7eb;
   --text-soft: #94a3b8;
-  --header-height: 76px;
+  --header-height: 56px;
   --footer-height: 56px;
 }
 

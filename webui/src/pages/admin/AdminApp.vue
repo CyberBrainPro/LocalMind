@@ -350,7 +350,7 @@ onMounted(() => {
   --text: #e5e7eb;
   --text-soft: #9ca3af;
   --danger: #f97373;
-  --header-height: 76px;
+  --header-height: 56px;
   --footer-height: 56px;
 }
 
