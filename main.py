@@ -54,6 +54,9 @@ for dirname in ("static", "website"):
 
 app.mount("/static", StaticFiles(directory="static"), name="static")
 app.mount("/website", StaticFiles(directory="website"), name="website")
+assets_dir = os.path.join("static", "assets")
+if os.path.isdir(assets_dir):
+    app.mount("/assets", StaticFiles(directory=assets_dir), name="assets")
 
 
 # 启动时加载文件夹配置

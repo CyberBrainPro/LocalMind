@@ -4,4 +4,6 @@ localmind_db
 localmind_folders.json
 __pycache__/
 *.pyc
+node_modules/
+webui/node_modules/
 .env

@@ -1,0 +1,612 @@
+<template>
+  <div id="app">
+    <div class="header">
+      <div class="brand">
+        <div class="logo">LM</div>
+        <div>
+          <div class="title">LocalMind Chat</div>
+          <div class="subtitle">本地知识助手 · Qwen 接入</div>
+        </div>
+      </div>
+      <div class="header-right">
+        <div class="status-dot"></div>
+        <span>Backend: {{ backendUrl }}</span>
+        <span class="badge">MVP</span>
+        <a href="/admin" class="nav-link">管理页面</a>
+        <a href="/vectors" class="nav-link">向量浏览</a>
+      </div>
+    </div>
+
+    <div class="main">
+      <div class="messages" ref="messageList">
+        <div v-if="messages.length === 0" class="empty-tip">
+          👋 还没有对话，先问一个与你本地知识库相关的问题试试吧。
+        </div>
+
+        <div
+          v-for="(msg, idx) in messages"
+          :key="idx"
+          class="msg-row"
+          :class="msg.role"
+        >
+          <div v-if="msg.role === 'assistant'" class="msg-avatar assistant">AI</div>
+          <div v-if="msg.role === 'user'" class="msg-avatar user">Me</div>
+
+          <div class="bubble" :class="msg.role">
+            <div class="markdown-body" v-html="formatMarkdown(msg.content)"></div>
+
+            <div class="bubble-meta">
+              <span>{{ msg.role === "user" ? "提问" : "回答" }}</span>
+              <span v-if="msg.time">{{ msg.time }}</span>
+              <span
+                v-if="msg.role === 'assistant' && msg.context?.length"
+                class="context-toggle"
+                @click="msg.showContext = !msg.showContext"
+              >
+                {{ msg.showContext ? "收起引用来源" : "查看引用来源" }}
+              </span>
+            </div>
+
+            <div
+              v-if="msg.role === 'assistant' && msg.context?.length && msg.showContext"
+              class="references-panel"
+            >
+              <div class="ref-title">引用来源</div>
+              <div class="ref-list">
+                <div class="ref-item" v-for="(chunk, i) in msg.context" :key="i">
+                  <div class="ref-header">
+                    <span class="ref-index">[{{ i + 1 }}]</span>
+                    <span class="ref-source">
+                      {{ resolveSourceLabel(getChunkMeta(chunk)) }}
+                    </span>
+                    <a
+                      v-if="hasFileLink(getChunkMeta(chunk))"
+                      :href="buildFileUrl(getChunkMeta(chunk))"
+                      target="_blank"
+                      class="ref-link"
+                    >
+                      预览 / 下载原文
+                    </a>
+                  </div>
+                  <div class="ref-snippet">
+                    {{ snippet(getChunkText(chunk)) }}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="input-bar">
+        <div class="input-row">
+          <textarea
+            v-model="input"
+            :rows="1"
+            @keydown.enter.exact.prevent="send"
+            @keydown.shift.enter.stop
+            placeholder="输入你的问题，Enter 发送，Shift+Enter 换行…"
+          ></textarea>
+          <button class="btn" @click="send" :disabled="sending || !input.trim()">
+            <span v-if="!sending">发送</span>
+            <span v-else>思考中…</span>
+          </button>
+        </div>
+        <div class="actions-row">
+          <div class="action-buttons">
+            <button class="btn btn-secondary" @click="clearHistory" :disabled="!messages.length">
+              清空对话
+            </button>
+          </div>
+          <div>
+            <span v-if="error" class="error">⚠️ {{ error }}</span>
+            <span v-else>提示：请先在后端导入文档再进行提问。</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script setup>
+import { marked } from "marked";
+import { nextTick, onMounted, reactive, ref } from "vue";
+
+const backendBase =
+  typeof window !== "undefined"
+    ? window.__LOCALMIND_API__ || import.meta.env.VITE_API_BASE || "http://127.0.0.1:8787"
+    : "http://127.0.0.1:8787";
+
+const backendUrl = backendBase;
+const messages = reactive([]);
+const input = ref("");
+const sending = ref(false);
+const error = ref("");
+const messageList = ref(null);
+
+const scrollToBottom = () => {
+  nextTick(() => {
+    if (messageList.value) {
+      messageList.value.scrollTop = messageList.value.scrollHeight;
+    }
+  });
+};
+
+const nowTime = () => {
+  const d = new Date();
+  const hh = String(d.getHours()).padStart(2, "0");
+  const mm = String(d.getMinutes()).padStart(2, "0");
+  return `${hh}:${mm}`;
+};
+
+const send = async () => {
+  if (sending.value) return;
+  const q = input.value.trim();
+  if (!q) return;
+
+  error.value = "";
+  input.value = "";
+
+  messages.push({
+    role: "user",
+    content: q,
+    time: nowTime(),
+  });
+  scrollToBottom();
+
+  sending.value = true;
+
+  try {
+    const resp = await fetch(`${backendBase}/query`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        question: q,
+        top_k: 5,
+      }),
+    });
+
+    if (!resp.ok) {
+      throw new Error(`HTTP ${resp.status}`);
+    }
+
+    const data = await resp.json();
+
+    messages.push({
+      role: "assistant",
+      content: data.answer || "(无回答)",
+      context: data.context_chunks || [],
+      showContext: false,
+      time: nowTime(),
+    });
+    scrollToBottom();
+  } catch (e) {
+    console.error(e);
+    error.value = "请求失败，请检查后端是否已运行或 CORS 设置。";
+  } finally {
+    sending.value = false;
+  }
+};
+
+const clearHistory = () => {
+  messages.splice(0, messages.length);
+};
+
+const formatMarkdown = (text) => {
+  if (!text) return "";
+  try {
+    return marked.parse(text);
+  } catch (e) {
+    console.error("Markdown 渲染失败", e);
+    return String(text)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/\n/g, "<br>");
+  }
+};
+
+const getChunkText = (chunk) => {
+  if (!chunk) return "";
+  if (typeof chunk === "string") return chunk;
+  if (typeof chunk === "object" && chunk.text) return chunk.text;
+  return JSON.stringify(chunk);
+};
+
+const getChunkMeta = (chunk) => {
+  if (!chunk || typeof chunk !== "object") return null;
+  if (chunk.metadata && typeof chunk.metadata === "object") {
+    return chunk.metadata;
+  }
+  return chunk;
+};
+
+const snippet = (text) => {
+  if (!text) return "";
+  const t = text.replace(/\s+/g, " ").trim();
+  return t.length > 120 ? `${t.slice(0, 120)}...` : t;
+};
+
+const resolveSourceLabel = (meta) => {
+  if (!meta) return "未知来源";
+  if (meta.folder_name || meta.file_path) {
+    const name = meta.folder_name || "未命名文件夹";
+    const path = meta.file_path || "";
+    return `${name} · ${path}`;
+  }
+  if (meta.title || meta.doc_id) {
+    return meta.title || meta.doc_id || "手动导入文档";
+  }
+  return "未标注来源";
+};
+
+const hasFileLink = (meta) => meta && meta.folder_id && meta.file_path;
+
+const buildFileUrl = (meta) => {
+  if (!hasFileLink(meta)) return "#";
+  const params = new URLSearchParams({
+    folder_id: meta.folder_id,
+    path: meta.file_path,
+  });
+  return `/files/raw?${params.toString()}`;
+};
+
+onMounted(() => {
+  scrollToBottom();
+});
+</script>
+
+<style scoped>
+:global(body) {
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", sans-serif;
+  background: radial-gradient(circle at top, #1f2937 0, #020617 50%, #000 100%);
+  color: var(--text);
+  min-height: 100vh;
+  display: flex;
+  align-items: stretch;
+  justify-content: center;
+  padding: 16px;
+}
+
+:global(:root) {
+  color-scheme: dark light;
+  --bg: #020617;
+  --panel: #020617;
+  --accent: #3b82f6;
+  --accent-soft: rgba(59, 130, 246, 0.16);
+  --border: rgba(148, 163, 184, 0.35);
+  --text: #e5e7eb;
+  --text-soft: #9ca3af;
+}
+
+#app {
+  width: 100%;
+  max-width: 1040px;
+  border-radius: 24px;
+  border: 1px solid var(--border);
+  background: radial-gradient(circle at top left, #111827, #020617);
+  box-shadow: 0 26px 70px rgba(15, 23, 42, 0.9), 0 0 0 1px rgba(15, 23, 42, 0.8);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.header {
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  backdrop-filter: blur(16px);
+  background: linear-gradient(to bottom, rgba(15, 23, 42, 0.95), rgba(15, 23, 42, 0.9));
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.logo {
+  width: 30px;
+  height: 30px;
+  border-radius: 12px;
+  background: radial-gradient(circle at 30% 15%, #bfdbfe, #60a5fa 40%, #1d4ed8);
+  border: 1px solid rgba(191, 219, 254, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  font-weight: 700;
+  color: #020617;
+  box-shadow: 0 12px 24px rgba(15, 23, 42, 0.9), 0 0 0 1px rgba(15, 23, 42, 0.7);
+}
+
+.title {
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.subtitle {
+  font-size: 12px;
+  color: var(--text-soft);
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 12px;
+  color: var(--text-soft);
+}
+
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: #22c55e;
+  box-shadow: 0 0 0 6px rgba(34, 197, 94, 0.25);
+}
+
+.badge {
+  padding: 3px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.nav-link {
+  padding: 6px 10px;
+  border-radius: 8px;
+  background: rgba(59, 130, 246, 0.15);
+  border: 1px solid rgba(59, 130, 246, 0.4);
+  color: #93c5fd;
+  text-decoration: none;
+  font-size: 12px;
+  margin-right: 4px;
+  transition: 0.15s ease;
+}
+
+.nav-link:hover {
+  background: rgba(59, 130, 246, 0.35);
+  border-color: rgba(147, 197, 253, 0.8);
+  color: #e0f2fe;
+}
+
+.main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  padding: 12px 16px 10px;
+  gap: 8px;
+}
+
+.messages {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.empty-tip {
+  text-align: center;
+  font-size: 13px;
+  color: var(--text-soft);
+  padding: 30px 20px;
+}
+
+.msg-row {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+}
+
+.msg-row.user {
+  justify-content: flex-end;
+}
+
+.msg-avatar {
+  width: 24px;
+  height: 24px;
+  border-radius: 999px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.msg-avatar.user {
+  background: linear-gradient(135deg, #38bdf8, #0ea5e9);
+  color: #0f172a;
+}
+
+.msg-avatar.assistant {
+  background: linear-gradient(135deg, #a855f7, #6366f1);
+  color: #f9fafb;
+}
+
+.bubble {
+  max-width: 80%;
+  padding: 8px 10px;
+  border-radius: 14px;
+  font-size: 14px;
+  line-height: 1.5;
+  border: 1px solid transparent;
+  box-shadow: 0 8px 18px rgba(15, 23, 42, 0.8);
+}
+
+.bubble.user {
+  background: linear-gradient(135deg, #1d4ed8, #3b82f6);
+  color: #eff6ff;
+  border-color: rgba(191, 219, 254, 0.5);
+  border-bottom-right-radius: 4px;
+}
+
+.bubble.assistant {
+  background: radial-gradient(circle at top left, #1f2937, #020617);
+  border-color: rgba(55, 65, 81, 0.9);
+  border-bottom-left-radius: 4px;
+}
+
+.bubble-meta {
+  margin-top: 4px;
+  font-size: 11px;
+  color: var(--text-soft);
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.context-toggle {
+  cursor: pointer;
+  color: #93c5fd;
+  font-weight: 500;
+}
+
+.references-panel {
+  margin-top: 8px;
+  padding: 10px;
+  border-radius: 12px;
+  background: rgba(15, 23, 42, 0.85);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.ref-title {
+  font-size: 12px;
+  color: var(--text-soft);
+}
+
+.ref-item {
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: rgba(59, 130, 246, 0.08);
+}
+
+.ref-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 6px;
+  flex-wrap: wrap;
+}
+
+.ref-index {
+  color: #93c5fd;
+}
+
+.ref-source {
+  font-size: 12px;
+  color: var(--text);
+}
+
+.ref-link {
+  margin-left: auto;
+  color: #93c5fd;
+  font-size: 12px;
+  text-decoration: none;
+}
+
+.ref-snippet {
+  font-size: 13px;
+  color: var(--text-soft);
+  white-space: normal;
+  word-break: break-word;
+}
+
+.input-bar {
+  border-top: 1px solid rgba(148, 163, 184, 0.35);
+  padding-top: 10px;
+}
+
+.input-row {
+  display: flex;
+  gap: 10px;
+}
+
+textarea {
+  flex: 1;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: rgba(15, 23, 42, 0.95);
+  color: var(--text);
+  padding: 10px 12px;
+  resize: none;
+  font-size: 14px;
+  min-height: 60px;
+}
+
+textarea:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px rgba(59, 130, 246, 0.6);
+}
+
+.btn {
+  border-radius: 12px;
+  border: none;
+  background: linear-gradient(135deg, #2563eb, #3b82f6);
+  color: #eff6ff;
+  font-weight: 600;
+  padding: 12px 18px;
+  cursor: pointer;
+  transition: opacity 0.2s ease;
+  min-width: 100px;
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-secondary {
+  background: rgba(15, 23, 42, 0.95);
+  border: 1px solid var(--border);
+  color: var(--text-soft);
+}
+
+.actions-row {
+  margin-top: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 12px;
+  color: var(--text-soft);
+  gap: 8px;
+}
+
+.error {
+  color: #fecaca;
+}
+
+@media (max-width: 720px) {
+  #app {
+    border-radius: 14px;
+  }
+
+  .header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  .btn {
+    min-width: 80px;
+  }
+
+  .bubble {
+    max-width: 100%;
+  }
+}
+</style>

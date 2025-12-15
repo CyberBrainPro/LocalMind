@@ -1,0 +1,746 @@
+<template>
+  <div id="app">
+    <div class="header">
+      <div class="brand">
+        <div class="logo">LM</div>
+        <div>
+          <div class="title">LocalMind Admin</div>
+          <div class="subtitle">本地知识库 · 文件夹监控与向量化管理</div>
+        </div>
+      </div>
+      <div class="header-right">
+        <div class="status-dot"></div>
+        <span>Backend: {{ backendBase }}</span>
+        <span class="badge">Admin</span>
+        <a href="/vectors" class="nav-link">查看向量</a>
+        <a href="/chat" class="nav-link">返回对话</a>
+      </div>
+    </div>
+
+    <div class="main">
+      <div class="panel">
+        <div class="panel-header">
+          <div class="panel-title">监控文件夹配置</div>
+          <button class="btn btn-secondary" @click="loadFolders">刷新</button>
+        </div>
+        <div class="panel-desc">
+          为 1-N 个服务器 / 目录建立配置，点击“扫描”后自动切分并向量化其中的文本文件。
+        </div>
+
+        <div class="input-row">
+          <div class="input-col">
+            <label>名称</label>
+            <input type="text" v-model="newFolder.name" placeholder="如：本机-项目文档" />
+          </div>
+          <div class="input-col">
+            <label>目录路径</label>
+            <input type="text" v-model="newFolder.path" placeholder="如：/Users/xxx/Documents/project-notes" />
+          </div>
+          <div style="display: flex; align-items: flex-end">
+            <button class="btn btn-primary" @click="createFolder" :disabled="creatingFolder">
+              <span v-if="!creatingFolder">添加文件夹</span>
+              <span v-else>添加中...</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="search-row">
+          <label style="font-size: 11px; color: var(--text-soft)">搜索：</label>
+          <input type="text" v-model="folderSearch" placeholder="按名称或路径过滤" />
+          <button class="btn btn-secondary" @click="loadFolders">重载</button>
+        </div>
+
+        <div class="folders-list">
+          <div v-if="folders.length === 0" style="font-size: 12px; color: var(--text-soft); padding: 4px 2px">
+            还没有配置任何监控文件夹，请先在上方添加。
+          </div>
+          <div v-for="f in filteredFolders" :key="f.id" class="folder-row">
+            <div class="folder-main">
+              <div class="folder-name">{{ f.name }}</div>
+              <div class="folder-path">{{ f.path }}</div>
+              <div class="folder-meta">
+                <span>
+                  最近扫描：
+                  <template v-if="f.last_scan_at">
+                    {{ formatTime(f.last_scan_at) }}（{{ f.last_scan_status || "未知状态" }}）
+                  </template>
+                  <template v-else>尚未扫描</template>
+                </span>
+              </div>
+            </div>
+            <div>
+              <div class="progress-box" v-if="f.currentJob">
+                <div>
+                  状态：<strong>{{ jobStatusLabel(f.currentJob.status) }}</strong>
+                  （{{ f.currentJob.processed_files }} / {{ f.currentJob.total_files }} 文件）
+                </div>
+                <div class="progress-bar">
+                  <div class="progress-inner" :style="{ width: progressPercent(f.currentJob) + '%' }"></div>
+                </div>
+              </div>
+            </div>
+            <div class="folder-actions">
+              <button class="btn btn-primary" @click="startScan(f)" :disabled="f.scanning">
+                <span v-if="!f.scanning">扫描并向量化</span>
+                <span v-else>扫描中...</span>
+              </button>
+              <button class="btn btn-secondary" @click="openInChat(f)">在 Chat 中提问</button>
+              <button class="btn btn-danger" @click="deleteFolder(f)">删除配置</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-header">
+          <div class="panel-title">扫描任务 / 进度</div>
+          <button class="btn btn-secondary" @click="loadJobs">刷新</button>
+        </div>
+        <div class="panel-desc">查看当前和历史扫描任务的进度，便于跟踪批量向量化过程。</div>
+
+        <div class="jobs-list">
+          <div v-if="jobs.length === 0" style="font-size: 12px; color: var(--text-soft)">
+            暂无扫描任务。你可以在左侧对某个文件夹发起一次扫描。
+          </div>
+          <div v-for="job in jobs" :key="job.id" class="job-row">
+            <div class="job-header">
+              <div>任务 {{ job.id.slice(0, 8) }}...</div>
+              <div class="job-status" :class="job.status">
+                {{ jobStatusLabel(job.status) }}
+              </div>
+            </div>
+            <div class="job-meta">
+              <span>文件数：{{ job.processed_files }} / {{ job.total_files }}</span>
+              <span>开始：{{ formatTime(job.started_at) }}</span>
+            </div>
+            <div class="job-meta" v-if="job.finished_at">
+              <span>结束：{{ formatTime(job.finished_at) }}</span>
+              <span v-if="job.error_message" style="color: #fecaca">{{ job.error_message }}</span>
+            </div>
+          </div>
+        </div>
+
+        <div v-if="error" class="error">⚠️ {{ error }}</div>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script setup>
+import { computed, onMounted, reactive, ref } from "vue";
+
+const backendBase =
+  typeof window !== "undefined"
+    ? window.__LOCALMIND_API__ || import.meta.env.VITE_API_BASE || "http://127.0.0.1:8787"
+    : "http://127.0.0.1:8787";
+
+const folders = reactive([]);
+const folderSearch = ref("");
+const newFolder = reactive({ name: "", path: "" });
+const creatingFolder = ref(false);
+const jobs = reactive([]);
+const error = ref("");
+
+const loadFolders = async () => {
+  try {
+    error.value = "";
+    folders.splice(0, folders.length);
+
+    const url = new URL(`${backendBase}/folders`);
+    if (folderSearch.value.trim()) {
+      url.searchParams.set("q", folderSearch.value.trim());
+    }
+
+    const resp = await fetch(url.toString());
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    const data = await resp.json();
+
+    (data.items || []).forEach((item) => {
+      folders.push({
+        ...item,
+        scanning: false,
+        currentJob: null,
+      });
+    });
+  } catch (e) {
+    console.error(e);
+    error.value = "加载文件夹配置失败，请检查后端服务。";
+  }
+};
+
+const createFolder = async () => {
+  if (!newFolder.name.trim() || !newFolder.path.trim()) {
+    error.value = "名称和路径不能为空。";
+    return;
+  }
+  try {
+    error.value = "";
+    creatingFolder.value = true;
+    const resp = await fetch(`${backendBase}/folders`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: newFolder.name.trim(),
+        path: newFolder.path.trim(),
+      }),
+    });
+    if (!resp.ok) {
+      const txt = await resp.text();
+      throw new Error(`HTTP ${resp.status} ${txt}`);
+    }
+    const data = await resp.json();
+    folders.push({
+      ...data,
+      scanning: false,
+      currentJob: null,
+    });
+    newFolder.name = "";
+    newFolder.path = "";
+  } catch (e) {
+    console.error(e);
+    error.value = `创建文件夹配置失败：${e.message}`;
+  } finally {
+    creatingFolder.value = false;
+  }
+};
+
+const deleteFolder = async (folder) => {
+  if (!confirm(`确定要删除「${folder.name}」这个配置吗？`)) return;
+  try {
+    const resp = await fetch(`${backendBase}/folders/${folder.id}`, {
+      method: "DELETE",
+    });
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    const idx = folders.findIndex((f) => f.id === folder.id);
+    if (idx >= 0) folders.splice(idx, 1);
+  } catch (e) {
+    console.error(e);
+    error.value = `删除配置失败：${e.message}`;
+  }
+};
+
+const loadJobs = async () => {
+  try {
+    error.value = "";
+    jobs.splice(0, jobs.length);
+    const resp = await fetch(`${backendBase}/scan-jobs`);
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    const data = await resp.json();
+    (data || []).forEach((item) => jobs.push(item));
+  } catch (e) {
+    console.error(e);
+    error.value = `加载扫描任务失败：${e.message}`;
+  }
+};
+
+const jobStatusLabel = (status) => {
+  switch (status) {
+    case "pending":
+      return "等待中";
+    case "running":
+      return "扫描中";
+    case "completed":
+      return "已完成";
+    case "error":
+      return "出错";
+    default:
+      return status || "未知";
+  }
+};
+
+const progressPercent = (job) => {
+  if (!job || !job.total_files) return 0;
+  const p = (job.processed_files / job.total_files) * 100;
+  return Math.max(5, Math.min(100, Math.round(p)));
+};
+
+const trackJob = async (folder, jobId) => {
+  const poll = async () => {
+    try {
+      const resp = await fetch(`${backendBase}/scan-jobs/${jobId}`);
+      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+      const job = await resp.json();
+      folder.currentJob = job;
+      folder.scanning = job.status === "pending" || job.status === "running";
+
+      if (job.status === "pending" || job.status === "running") {
+        setTimeout(poll, 1500);
+      } else {
+        loadJobs();
+        loadFolders();
+      }
+    } catch (e) {
+      console.error(e);
+      folder.scanning = false;
+    }
+  };
+  poll();
+};
+
+const startScan = async (folder) => {
+  try {
+    error.value = "";
+    folder.scanning = true;
+    folder.currentJob = null;
+
+    const resp = await fetch(`${backendBase}/folders/${folder.id}/scan`, { method: "POST" });
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+
+    const job = await resp.json();
+    folder.currentJob = job;
+    trackJob(folder, job.id);
+  } catch (e) {
+    console.error(e);
+    error.value = `启动扫描失败：${e.message}`;
+    folder.scanning = false;
+  }
+};
+
+const formatTime = (iso) => {
+  if (!iso) return "-";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso;
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  const hh = String(d.getHours()).padStart(2, "0");
+  const mm = String(d.getMinutes()).padStart(2, "0");
+  return `${y}-${m}-${day} ${hh}:${mm}`;
+};
+
+const filteredFolders = computed(() => {
+  const q = folderSearch.value.trim().toLowerCase();
+  if (!q) return folders;
+  return folders.filter(
+    (f) => f.name.toLowerCase().includes(q) || (f.path || "").toLowerCase().includes(q)
+  );
+});
+
+const openInChat = () => {
+  window.open("/chat", "_blank");
+};
+
+onMounted(() => {
+  loadFolders();
+  loadJobs();
+});
+</script>
+
+<style scoped>
+:global(:root) {
+  color-scheme: dark light;
+  --bg: #020617;
+  --panel: #020617;
+  --border: rgba(148, 163, 184, 0.35);
+  --accent: #3b82f6;
+  --accent-soft: rgba(59, 130, 246, 0.16);
+  --text: #e5e7eb;
+  --text-soft: #9ca3af;
+  --danger: #f97373;
+}
+
+:global(*) {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+:global(body) {
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", sans-serif;
+  background: radial-gradient(circle at top, #1f2937 0, #020617 50%, #000 100%);
+  color: var(--text);
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+  padding: 16px;
+}
+
+#app {
+  width: 100%;
+  max-width: 1040px;
+  border-radius: 24px;
+  border: 1px solid var(--border);
+  background: radial-gradient(circle at top left, #111827, #020617);
+  box-shadow: 0 26px 70px rgba(15, 23, 42, 0.9), 0 0 0 1px rgba(15, 23, 42, 0.8);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.header {
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  backdrop-filter: blur(16px);
+  background: linear-gradient(to bottom, rgba(15, 23, 42, 0.95), rgba(15, 23, 42, 0.9));
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.logo {
+  width: 30px;
+  height: 30px;
+  border-radius: 12px;
+  background: radial-gradient(circle at 30% 15%, #bfdbfe, #60a5fa 40%, #1d4ed8);
+  border: 1px solid rgba(191, 219, 254, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  font-weight: 700;
+  color: #020617;
+  box-shadow: 0 12px 24px rgba(15, 23, 42, 0.9), 0 0 0 1px rgba(15, 23, 42, 0.7);
+}
+
+.title {
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+}
+
+.subtitle {
+  font-size: 11px;
+  color: var(--text-soft);
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 12px;
+  color: var(--text-soft);
+}
+
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: #22c55e;
+  box-shadow: 0 0 0 5px rgba(34, 197, 94, 0.3);
+}
+
+.badge {
+  padding: 3px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.nav-link {
+  padding: 6px 10px;
+  border-radius: 8px;
+  background: rgba(59, 130, 246, 0.15);
+  border: 1px solid rgba(59, 130, 246, 0.4);
+  color: #93c5fd;
+  text-decoration: none;
+  font-size: 12px;
+  margin-right: 12px;
+  transition: 0.15s ease;
+}
+
+.nav-link:hover {
+  background: rgba(59, 130, 246, 0.35);
+  border-color: rgba(147, 197, 253, 0.8);
+  color: #e0f2fe;
+}
+
+.main {
+  flex: 1;
+  display: grid;
+  grid-template-columns: minmax(0, 2.2fr) minmax(0, 1.6fr);
+  gap: 10px;
+  padding: 12px 14px 14px;
+}
+
+.panel {
+  border-radius: 18px;
+  border: 1px solid var(--border);
+  background: radial-gradient(circle at top, #020617 0, #020617 50%, #020617 100%);
+  padding: 12px 12px 10px;
+  display: flex;
+  flex-direction: column;
+}
+
+.panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+.panel-title {
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.panel-desc {
+  font-size: 12px;
+  color: var(--text-soft);
+  margin-bottom: 8px;
+}
+
+.input-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.input-col {
+  flex: 1;
+  min-width: 140px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+label {
+  font-size: 11px;
+  color: var(--text-soft);
+}
+
+input[type="text"] {
+  width: 100%;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: rgba(15, 23, 42, 0.96);
+  color: var(--text);
+  padding: 6px 8px;
+  font-size: 13px;
+  outline: none;
+}
+
+input[type="text"]:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px rgba(59, 130, 246, 0.6);
+}
+
+.btn {
+  cursor: pointer;
+  border-radius: 10px;
+  border: 1px solid transparent;
+  padding: 7px 12px;
+  font-size: 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, #2563eb, #3b82f6);
+  color: #eff6ff;
+  border-color: rgba(191, 219, 254, 0.5);
+  box-shadow: 0 10px 22px rgba(37, 99, 235, 0.85), 0 0 0 1px rgba(15, 23, 42, 0.7);
+}
+
+.btn-secondary {
+  background: rgba(15, 23, 42, 0.95);
+  color: var(--text-soft);
+  border-color: var(--border);
+}
+
+.btn-danger {
+  background: rgba(127, 29, 29, 0.95);
+  color: #fee2e2;
+  border-color: rgba(254, 202, 202, 0.6);
+}
+
+.btn:disabled {
+  opacity: 0.6;
+  cursor: default;
+  box-shadow: none;
+}
+
+.folders-list {
+  flex: 1;
+  margin-top: 6px;
+  border-radius: 12px;
+  border: 1px solid rgba(31, 41, 55, 0.9);
+  background: rgba(15, 23, 42, 0.95);
+  padding: 6px 6px 4px;
+  overflow-y: auto;
+  max-height: 320px;
+}
+
+.folder-row {
+  border-radius: 9px;
+  padding: 6px 6px;
+  display: grid;
+  grid-template-columns: minmax(0, 2.3fr) minmax(0, 1.6fr) auto;
+  gap: 8px;
+  align-items: center;
+  font-size: 12px;
+}
+
+.folder-row + .folder-row {
+  border-top: 1px solid rgba(31, 41, 55, 0.9);
+  margin-top: 4px;
+  padding-top: 8px;
+}
+
+.folder-main {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.folder-name {
+  font-weight: 500;
+}
+
+.folder-path {
+  color: var(--text-soft);
+  font-size: 11px;
+}
+
+.folder-meta {
+  font-size: 11px;
+  color: var(--text-soft);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+}
+
+.folder-meta span.status {
+  padding: 2px 6px;
+  border-radius: 999px;
+  border: 1px solid rgba(55, 65, 81, 0.9);
+  background: rgba(15, 23, 42, 0.96);
+}
+
+.folder-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  align-items: flex-end;
+}
+
+.search-row {
+  display: flex;
+  gap: 6px;
+  margin-top: 4px;
+  align-items: center;
+}
+
+.search-row input {
+  flex: 1;
+}
+
+.progress-box {
+  margin-top: 4px;
+  font-size: 11px;
+  color: var(--text-soft);
+}
+
+.progress-bar {
+  width: 100%;
+  height: 6px;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.96);
+  overflow: hidden;
+  margin-top: 3px;
+}
+
+.progress-inner {
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #22c55e, #3b82f6);
+  transition: width 0.18s ease-out;
+}
+
+.jobs-list {
+  flex: 1;
+  border-radius: 12px;
+  border: 1px solid rgba(31, 41, 55, 0.9);
+  padding: 6px 8px;
+  background: rgba(15, 23, 42, 0.95);
+  font-size: 12px;
+  overflow-y: auto;
+}
+
+.job-row {
+  padding: 5px 0;
+  border-bottom: 1px solid rgba(31, 41, 55, 0.9);
+}
+
+.job-row:last-child {
+  border-bottom: none;
+}
+
+.job-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 2px;
+}
+
+.job-status {
+  font-size: 11px;
+  padding: 2px 6px;
+  border-radius: 999px;
+  border: 1px solid rgba(55, 65, 81, 0.9);
+}
+
+.job-status.completed {
+  border-color: #22c55e;
+  color: #bbf7d0;
+}
+
+.job-status.running {
+  border-color: #facc15;
+  color: #fef9c3;
+}
+
+.job-status.error {
+  border-color: #f97373;
+  color: #fecaca;
+}
+
+.job-meta {
+  font-size: 11px;
+  color: var(--text-soft);
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.error {
+  color: #fecaca;
+  font-size: 11px;
+  margin-top: 2px;
+}
+
+@media (max-width: 840px) {
+  #app {
+    border-radius: 18px;
+  }
+
+  .main {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 640px) {
+  :global(body) {
+    padding: 10px;
+  }
+
+  .folder-row {
+    grid-template-columns: minmax(0, 1fr);
+    align-items: flex-start;
+  }
+
+  .folder-actions {
+    align-items: flex-start;
+  }
+}
+</style>
