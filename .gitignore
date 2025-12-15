@@ -1,4 +1,6 @@
-/.env
+/env
 .idea
 localmind_db
 localmind_folders.json
+__pycache__/
+*.pyc
